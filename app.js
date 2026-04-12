@@ -228,6 +228,9 @@ const COVER_COLORS = {
 };
 function getCoverColor(cat) { return COVER_COLORS[cat] || '#3a5a8c'; }
 
+const MEDIUM_ICON = { kindle: '📱', audiobook: '🎧' };
+function getMediumIcon(medium) { return MEDIUM_ICON[medium] || ''; }
+
 function refreshCurrentView() {
   const active = document.querySelector('.view:not(.hidden)');
   if (!active) return;
@@ -334,6 +337,7 @@ async function loadHome() {
               <h3 class="book-cover-title">${b.title}</h3>
               <p class="book-cover-category">${b.category}</p>
             </div>
+            ${getMediumIcon(b.medium) ? `<span class="book-cover-medium">${getMediumIcon(b.medium)}</span>` : ''}
           </div>`).join('')}</div>`);
 
   document.getElementById('recent-highlights').innerHTML =
@@ -396,6 +400,7 @@ function loadBooks() {
                 <h3 class="book-cover-title">${b.title}</h3>
                 <p class="book-cover-category">${b.category}</p>
               </div>
+              ${getMediumIcon(b.medium) ? `<span class="book-cover-medium">${getMediumIcon(b.medium)}</span>` : ''}
               <button onclick="handleDeleteBook(${b.id}, event)" class="delete-btn book-cover-delete" title="Delete">&#128465;</button>
             </div>`).join('')}
         </div>
@@ -417,6 +422,7 @@ function openBook(id) {
           <div class="book-detail-pills">
             <span class="book-pill book-status-${book.status.replace(' ','-').toLowerCase()}">${book.status}</span>
             <span class="book-pill book-pill-category">${book.category}</span>
+            ${getMediumIcon(book.medium) ? `<span class="book-pill book-pill-medium">${getMediumIcon(book.medium)} ${book.medium.charAt(0).toUpperCase() + book.medium.slice(1)}</span>` : ''}
           </div>
         </div>
         <div class="book-detail-icon-btns">
@@ -472,6 +478,7 @@ async function addBook(event) {
     title:              document.getElementById('book-title-input').value,
     status:             document.getElementById('book-status-input').value,
     category:           document.getElementById('book-category-input').value,
+    medium:             document.querySelector('#add-book-medium-group .medium-btn.active')?.dataset.value || '',
     dateCompleted:      document.getElementById('book-date-completed-input').value,
     notes:              document.getElementById('book-notes-input').value,
     aftertaste:         document.getElementById('book-aftertaste-input').value,
@@ -484,6 +491,7 @@ async function addBook(event) {
   document.getElementById('book-category-input').value = 'Fiction';
   document.getElementById('add-book-completion-fields').style.display = 'none';
   document.getElementById('add-book-fav-char-field').style.display    = 'none';
+  setMediumBtn('#add-book-medium-group', '');
   await saveAndSync();
   loadBooks();
 }
@@ -499,6 +507,7 @@ function showEditBookForm() {
   document.getElementById('edit-book-aftertaste').value     = book.aftertaste || '';
   document.getElementById('edit-book-fav-char').value       = book.favouriteCharacter || '';
   document.getElementById('edit-book-date-completed').value = book.dateCompleted || '';
+  setMediumBtn('#edit-book-medium-group', book.medium || '');
   toggleCompletionFields();
   document.getElementById('edit-book-form').classList.remove('hidden');
   document.getElementById('edit-book-form').style.display = 'flex';
@@ -519,6 +528,7 @@ async function updateBook(event) {
     title:              document.getElementById('edit-book-title').value,
     status:             document.getElementById('edit-book-status').value,
     category:           document.getElementById('edit-book-category').value,
+    medium:             document.querySelector('#edit-book-medium-group .medium-btn.active')?.dataset.value || '',
     notes:              document.getElementById('edit-book-notes').value,
     aftertaste:         document.getElementById('edit-book-aftertaste').value,
     favouriteCharacter: document.getElementById('edit-book-fav-char').value,
@@ -733,6 +743,23 @@ async function deleteEssayConfirmed(id) {
 function printEssay() { window.print(); }
 
 // ─── FORMS ────────────────────────────────────────────────────────────────────
+function setMediumBtn(groupSelector, value) {
+  document.querySelectorAll(`${groupSelector} .medium-btn`).forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.value === value);
+  });
+}
+
+function toggleMediumBtn(btn) {
+  const group   = btn.closest('.medium-btn-group');
+  const current = group.querySelector('.medium-btn.active');
+  if (current === btn) {
+    btn.classList.remove('active'); // tap again to deselect
+  } else {
+    if (current) current.classList.remove('active');
+    btn.classList.add('active');
+  }
+}
+
 function hideForm() {
   document.querySelectorAll('.form').forEach(f => {
     f.classList.add('hidden');
