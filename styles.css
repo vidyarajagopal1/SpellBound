@@ -342,10 +342,26 @@ main { min-height: 100%; }
   border-radius: var(--radius);
   padding: 10px 12px;
   margin-bottom: 8px;
-  cursor: pointer;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: opacity 0.15s;
 }
+.home-waitlist-item.dragging { opacity: 0.35; }
 .home-waitlist-spine { width: 6px; height: 32px; border-radius: 3px; flex-shrink: 0; }
-.home-waitlist-title { font-size: 0.85rem; }
+.home-waitlist-title { font-size: 0.85rem; flex: 1; cursor: pointer; }
+.home-waitlist-title:active { color: var(--accent2); }
+.drag-handle {
+  color: var(--text-muted);
+  cursor: grab;
+  font-size: 1rem;
+  letter-spacing: -3px;
+  padding: 4px 6px 4px 0;
+  touch-action: none;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.drag-handle:active { cursor: grabbing; color: var(--accent2); }
 .home-empty { color: var(--text-muted); font-size: 0.85rem; padding: 0.5rem 0; }
 
 /* ─── ESSAYS ────────────────────────────────────────────────────────────────── */

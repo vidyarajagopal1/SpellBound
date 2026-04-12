@@ -68,6 +68,24 @@ function dbClear(store) {
   });
 }
 
+function dbGetMeta(key) {
+  return new Promise((resolve, reject) => {
+    const tx  = db.transaction('meta', 'readonly');
+    const req = tx.objectStore('meta').get(key);
+    req.onsuccess = () => resolve(req.result ? req.result.value : null);
+    req.onerror   = () => reject(req.error);
+  });
+}
+
+function dbSetMeta(key, value) {
+  return new Promise((resolve, reject) => {
+    const tx  = db.transaction('meta', 'readwrite');
+    const req = tx.objectStore('meta').put({ key, value });
+    req.onsuccess = () => resolve();
+    req.onerror   = () => reject(req.error);
+  });
+}
+
 function nextId(arr) {
   return arr.length === 0 ? 1 : Math.max(...arr.map(x => x.id)) + 1;
 }
@@ -154,6 +172,7 @@ async function syncFromDrive() {
       for (const b of (data.books      || [])) await dbPut('books',      b);
       for (const h of (data.highlights || [])) await dbPut('highlights', h);
       for (const e of (data.essays     || [])) await dbPut('essays',     e);
+      if (data.waitlistOrder) await dbSetMeta('waitlist-order', data.waitlistOrder);
       await loadData();
       refreshCurrentView();
       updateSyncStatus('Synced ' + new Date().toLocaleTimeString());
@@ -169,7 +188,8 @@ async function syncFromDrive() {
 async function syncToDrive() {
   if (!gapiReady || !gapi.client.getToken()) return;
   try {
-    const payload  = JSON.stringify({ books, highlights, essays });
+    const waitlistOrder = await dbGetMeta('waitlist-order') || [];
+    const payload  = JSON.stringify({ books, highlights, essays, waitlistOrder });
     const file     = await getDriveFileId();
     const method   = file ? 'PATCH' : 'POST';
     const fileId   = file ? `/${file.id}` : '';
@@ -220,6 +240,70 @@ function refreshCurrentView() {
   else if (id === 'essay-detail-view'  && currentEssayId) openEssay(currentEssayId);
 }
 
+async function saveWaitlistOrder(order) {
+  await dbSetMeta('waitlist-order', order);
+  syncToDrive().catch(() => {});
+}
+
+function makeDraggableList(listEl, onReorder) {
+  function getAfterElement(y) {
+    const els = [...listEl.querySelectorAll('.home-waitlist-item:not(.dragging)')];
+    return els.reduce((closest, el) => {
+      const box    = el.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      return (offset < 0 && offset > closest.offset) ? { offset, el } : closest;
+    }, { offset: Number.NEGATIVE_INFINITY }).el;
+  }
+
+  let dragging = null;
+
+  listEl.querySelectorAll('.home-waitlist-item').forEach(item => {
+    const handle = item.querySelector('.drag-handle');
+
+    // Mouse drag (desktop)
+    item.setAttribute('draggable', 'true');
+    item.addEventListener('dragstart', e => {
+      dragging = item;
+      e.dataTransfer.effectAllowed = 'move';
+      setTimeout(() => item.classList.add('dragging'), 0);
+    });
+    item.addEventListener('dragend', async () => {
+      item.classList.remove('dragging');
+      dragging = null;
+      const order = [...listEl.querySelectorAll('.home-waitlist-item')].map(el => parseInt(el.dataset.id));
+      await onReorder(order);
+    });
+
+    // Touch drag (mobile)
+    handle.addEventListener('touchstart', () => {
+      dragging = item;
+      item.classList.add('dragging');
+    }, { passive: true });
+    handle.addEventListener('touchmove', e => {
+      e.preventDefault();
+      if (!dragging) return;
+      const after = getAfterElement(e.touches[0].clientY);
+      if (after == null) listEl.appendChild(dragging);
+      else listEl.insertBefore(dragging, after);
+    }, { passive: false });
+    handle.addEventListener('touchend', async () => {
+      if (!dragging) return;
+      item.classList.remove('dragging');
+      dragging = null;
+      const order = [...listEl.querySelectorAll('.home-waitlist-item')].map(el => parseInt(el.dataset.id));
+      await onReorder(order);
+    });
+  });
+
+  listEl.addEventListener('dragover', e => {
+    e.preventDefault();
+    if (!dragging) return;
+    const after = getAfterElement(e.clientY);
+    if (after == null) listEl.appendChild(dragging);
+    else listEl.insertBefore(dragging, after);
+  });
+}
+
 // ─── NAVIGATION ───────────────────────────────────────────────────────────────
 function showView(view) {
   document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
@@ -234,7 +318,7 @@ function showView(view) {
 }
 
 // ─── HOME ─────────────────────────────────────────────────────────────────────
-function loadHome() {
+async function loadHome() {
   const readingBooks     = books.filter(b => b.status === 'Reading');
   const waitlistedBooks  = books.filter(b => b.status === 'Waitlisted');
   const recentHighlights = highlights.slice(-5).reverse();
@@ -265,15 +349,29 @@ function loadHome() {
           </div>`;
         }).join(''));
 
-  document.getElementById('waitlisted-books').innerHTML =
-    '<h2 class="home-section-title">Waitlisted</h2>' +
-    (waitlistedBooks.length === 0
-      ? '<p class="home-empty">Nothing waiting.</p>'
-      : waitlistedBooks.map(b =>
-          `<div class="home-waitlist-item" onclick="openBook(${b.id})">
-            <div class="home-waitlist-spine" style="background-color:${getCoverColor(b.category)}"></div>
-            <span class="home-waitlist-title">${b.title}</span>
-          </div>`).join(''));
+  // Sort waitlist by saved order
+  const savedOrder = await dbGetMeta('waitlist-order') || [];
+  const ordered = [
+    ...savedOrder.map(id => waitlistedBooks.find(b => b.id === id)).filter(Boolean),
+    ...waitlistedBooks.filter(b => !savedOrder.includes(b.id))
+  ];
+
+  const waitlistContainer = document.getElementById('waitlisted-books');
+  waitlistContainer.innerHTML = '<h2 class="home-section-title">Waitlisted</h2>';
+  if (ordered.length === 0) {
+    waitlistContainer.innerHTML += '<p class="home-empty">Nothing waiting.</p>';
+  } else {
+    const listEl = document.createElement('div');
+    listEl.id = 'waitlisted-books-list';
+    listEl.innerHTML = ordered.map(b =>
+      `<div class="home-waitlist-item" data-id="${b.id}">
+        <span class="drag-handle" title="Drag to reorder">&#8942;&#8942;</span>
+        <div class="home-waitlist-spine" style="background-color:${getCoverColor(b.category)}"></div>
+        <span class="home-waitlist-title" onclick="openBook(${b.id})">${b.title}</span>
+      </div>`).join('');
+    waitlistContainer.appendChild(listEl);
+    makeDraggableList(listEl, saveWaitlistOrder);
+  }
 }
 
 // ─── BOOKS ────────────────────────────────────────────────────────────────────
