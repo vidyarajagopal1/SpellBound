@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>SpellBound</title>
+  <meta name="theme-color" content="#1a1a2e">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SpellBound">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1 class="app-title">SpellBound</h1>
+    <div id="sync-status" class="sync-status" onclick="signIn()" title="Tap to sign in with Google"></div>
+  </header>
+  <main>
+
+    <!-- Home View -->
+    <div id="home-view" class="view">
+      <div id="reading-books"></div>
+      <div class="home-bottom">
+        <div id="recent-highlights"></div>
+        <div id="waitlisted-books"></div>
+      </div>
+    </div>
+
+    <!-- Books List View -->
+    <div id="books-view" class="view hidden">
+      <div class="books-toolbar">
+        <select id="books-status-filter" onchange="loadBooks()">
+          <option value="">All Statuses</option>
+          <option value="Reading">Reading</option>
+          <option value="Completed">Completed</option>
+          <option value="Paused">Paused</option>
+          <option value="Waitlisted">Waitlisted</option>
+        </select>
+        <select id="books-category-filter" onchange="loadBooks()">
+          <option value="">All Categories</option>
+          <option value="Fiction">Fiction</option>
+          <option value="History">History</option>
+          <option value="Politics">Politics</option>
+          <option value="Philosophy">Philosophy</option>
+          <option value="Graphic Novels">Graphic Novels</option>
+        </select>
+        <button class="fab-inline" onclick="showAddBookForm()">+ Add Book</button>
+      </div>
+      <div id="books-list"></div>
+    </div>
+
+    <!-- Book Detail View -->
+    <div id="book-detail-view" class="view hidden">
+      <div class="book-detail-actions">
+        <button onclick="showView('books')">&#8592; Back to Books</button>
+      </div>
+      <h2 id="book-title"></h2>
+      <div id="book-metadata"></div>
+      <div id="book-reflection"></div>
+      <button onclick="showAddHighlightForm()">Add Highlight</button>
+      <div id="highlights-list"></div>
+    </div>
+
+    <!-- Highlights View -->
+    <div id="highlights-view" class="view hidden">
+      <div class="highlights-toolbar">
+        <input type="text" id="highlight-search" placeholder="Search highlights..." oninput="loadHighlights()">
+        <div class="highlights-toolbar-row">
+          <select id="highlight-category-filter" onchange="loadHighlights()">
+            <option value="">All Categories</option>
+            <option value="Fiction">Fiction</option>
+            <option value="History">History</option>
+            <option value="Politics">Politics</option>
+            <option value="Philosophy">Philosophy</option>
+            <option value="Graphic Novels">Graphic Novels</option>
+          </select>
+          <button class="fab-inline" onclick="showAddHighlightForm()">+ Add</button>
+        </div>
+      </div>
+      <div id="all-highlights"></div>
+    </div>
+
+    <!-- Essays View -->
+    <div id="essays-view" class="view hidden">
+      <button onclick="showAddEssayForm()">Add Essay</button>
+      <div id="essays-grid" class="essays-grid"></div>
+    </div>
+
+    <!-- Essay Detail View -->
+    <div id="essay-detail-view" class="view hidden">
+      <div class="essay-detail-actions no-print">
+        <button onclick="showView('essays')">&#8592; Back to Essays</button>
+        <button onclick="showEditEssayForm()">Edit</button>
+        <button onclick="printEssay()">Share as PDF</button>
+        <button onclick="handleDeleteEssay(currentEssayId, event)" class="delete-btn">&#128465; Delete</button>
+      </div>
+      <div class="essay-print-content">
+        <h2 id="essay-detail-title"></h2>
+        <p id="essay-detail-subtitle" class="essay-detail-subtitle"></p>
+        <p id="essay-detail-date" class="essay-detail-meta"></p>
+        <p id="essay-detail-tags" class="essay-detail-meta"></p>
+        <div id="essay-detail-body" class="essay-body"></div>
+      </div>
+    </div>
+
+    <!-- Add Book Form -->
+    <div id="add-book-form" class="form hidden">
+      <h3>Add Book</h3>
+      <form onsubmit="addBook(event)">
+        <label for="book-title-input">Title</label>
+        <input type="text" id="book-title-input" placeholder="Title" required>
+        <label for="book-status-input">Status</label>
+        <select id="book-status-input" required onchange="toggleAddBookFields()">
+          <option value="Reading">Reading</option>
+          <option value="Completed">Completed</option>
+          <option value="Paused">Paused</option>
+          <option value="Waitlisted">Waitlisted</option>
+        </select>
+        <label for="book-category-input">Category</label>
+        <select id="book-category-input" required onchange="toggleAddBookFields()">
+          <option value="Fiction">Fiction</option>
+          <option value="History">History</option>
+          <option value="Politics">Politics</option>
+          <option value="Philosophy">Philosophy</option>
+          <option value="Graphic Novels">Graphic Novels</option>
+        </select>
+        <div id="add-book-completion-fields" style="display:none;">
+          <label for="book-date-completed-input">Date Completed</label>
+          <input type="date" id="book-date-completed-input">
+          <label for="book-notes-input">Notes</label>
+          <textarea id="book-notes-input" placeholder="Notes"></textarea>
+          <label for="book-aftertaste-input">Aftertaste</label>
+          <textarea id="book-aftertaste-input" placeholder="Aftertaste"></textarea>
+        </div>
+        <div id="add-book-fav-char-field" style="display:none;">
+          <label for="book-fav-char-input">Favourite Character <span style="font-weight:normal;color:#888;">(optional)</span></label>
+          <input type="text" id="book-fav-char-input" placeholder="Favourite Character">
+        </div>
+        <button type="submit">Add</button>
+        <button type="button" onclick="hideForm()">Cancel</button>
+      </form>
+    </div>
+
+    <!-- Edit Book Form -->
+    <div id="edit-book-form" class="form hidden">
+      <h3>Edit Book</h3>
+      <form onsubmit="updateBook(event)">
+        <label for="edit-book-title">Title</label>
+        <input type="text" id="edit-book-title" required>
+        <label for="edit-book-status">Status</label>
+        <select id="edit-book-status" required onchange="toggleCompletionFields()">
+          <option value="Reading">Reading</option>
+          <option value="Completed">Completed</option>
+          <option value="Paused">Paused</option>
+          <option value="Waitlisted">Waitlisted</option>
+        </select>
+        <label for="edit-book-category">Category</label>
+        <select id="edit-book-category" required onchange="toggleCompletionFields()">
+          <option value="Fiction">Fiction</option>
+          <option value="History">History</option>
+          <option value="Politics">Politics</option>
+          <option value="Philosophy">Philosophy</option>
+          <option value="Graphic Novels">Graphic Novels</option>
+        </select>
+        <div id="completion-fields" style="display:none;">
+          <label for="edit-book-date-completed">Date Completed</label>
+          <input type="date" id="edit-book-date-completed">
+          <label for="edit-book-notes">Notes</label>
+          <textarea id="edit-book-notes" placeholder="Notes"></textarea>
+          <label for="edit-book-aftertaste">Aftertaste</label>
+          <textarea id="edit-book-aftertaste" placeholder="Aftertaste"></textarea>
+        </div>
+        <div id="edit-book-fav-char-field" style="display:none;">
+          <label for="edit-book-fav-char">Favourite Character <span style="font-weight:normal;color:#888;">(optional)</span></label>
+          <input type="text" id="edit-book-fav-char" placeholder="Favourite Character">
+        </div>
+        <button type="submit">Save</button>
+        <button type="button" onclick="hideForm()">Cancel</button>
+      </form>
+    </div>
+
+    <!-- Add Highlight Form -->
+    <div id="add-highlight-form" class="form hidden">
+      <h3>Add Highlight</h3>
+      <form onsubmit="addHighlight(event)">
+        <div id="book-choice-section" style="display: none;">
+          <label for="book-choice-existing">
+            <input type="radio" id="book-choice-existing" name="bookChoice" value="existing" checked onchange="toggleBookChoice()">
+            Select existing book
+          </label>
+          <label for="book-choice-new">
+            <input type="radio" id="book-choice-new" name="bookChoice" value="new" onchange="toggleBookChoice()">
+            Add new book
+          </label>
+          <div id="existing-book-section">
+            <label for="highlight-book-select">Book</label>
+            <select id="highlight-book-select"></select>
+          </div>
+          <div id="new-book-section" style="display: none;">
+            <label for="new-book-title">Book Title</label>
+            <input type="text" id="new-book-title" placeholder="Book Title">
+            <label for="new-book-status">Status</label>
+            <select id="new-book-status">
+              <option value="Reading">Reading</option>
+              <option value="Waitlisted">Waitlisted</option>
+            </select>
+            <label for="new-book-category">Category</label>
+            <select id="new-book-category">
+              <option value="Fiction">Fiction</option>
+              <option value="History">History</option>
+              <option value="Politics">Politics</option>
+              <option value="Philosophy">Philosophy</option>
+              <option value="Graphic Novels">Graphic Novels</option>
+            </select>
+          </div>
+        </div>
+        <label for="highlight-text-input">Highlight Text</label>
+        <textarea id="highlight-text-input" placeholder="Highlight text" required></textarea>
+        <label for="why-stayed-input">Why it stayed</label>
+        <textarea id="why-stayed-input" placeholder="Why it stayed"></textarea>
+        <label for="highlight-date-input">Date</label>
+        <input type="date" id="highlight-date-input">
+        <button type="submit">Add</button>
+        <button type="button" onclick="hideForm()">Cancel</button>
+      </form>
+    </div>
+
+    <!-- Add Essay Form -->
+    <div id="add-essay-form" class="form hidden">
+      <h3>Add Essay</h3>
+      <form onsubmit="addEssay(event)">
+        <label for="essay-title-input">Title</label>
+        <input type="text" id="essay-title-input" placeholder="Title" required>
+        <label for="essay-subtitle-input">Subtitle</label>
+        <input type="text" id="essay-subtitle-input" placeholder="Subtitle (optional)">
+        <label for="essay-date-input">Date</label>
+        <input type="date" id="essay-date-input">
+        <label for="essay-tags-input">Tags</label>
+        <input type="text" id="essay-tags-input" placeholder="e.g. Personal, Academic (optional)">
+        <label for="essay-content-input">Content (Markdown)</label>
+        <textarea id="essay-content-input" placeholder="Write your essay in Markdown..." required rows="15"></textarea>
+        <button type="submit">Add</button>
+        <button type="button" onclick="hideForm()">Cancel</button>
+      </form>
+    </div>
+
+    <!-- Edit Essay Form -->
+    <div id="edit-essay-form" class="form hidden">
+      <h3>Edit Essay</h3>
+      <form onsubmit="updateEssay(event)">
+        <label for="edit-essay-title">Title</label>
+        <input type="text" id="edit-essay-title" required>
+        <label for="edit-essay-subtitle">Subtitle</label>
+        <input type="text" id="edit-essay-subtitle">
+        <label for="edit-essay-date">Date</label>
+        <input type="date" id="edit-essay-date">
+        <label for="edit-essay-tags">Tags</label>
+        <input type="text" id="edit-essay-tags">
+        <label for="edit-essay-content">Content (Markdown)</label>
+        <textarea id="edit-essay-content" required rows="15"></textarea>
+        <button type="submit">Save</button>
+        <button type="button" onclick="hideForm()">Cancel</button>
+      </form>
+    </div>
+
+  </main>
+
+  <nav class="bottom-nav">
+    <button id="nav-home" class="nav-btn active" onclick="showView('home')">
+      <span class="nav-icon">&#127968;</span>
+      <span class="nav-label">Home</span>
+    </button>
+    <button id="nav-books" class="nav-btn" onclick="showView('books')">
+      <span class="nav-icon">&#128218;</span>
+      <span class="nav-label">Books</span>
+    </button>
+    <button id="nav-highlights" class="nav-btn" onclick="showView('highlights')">
+      <span class="nav-icon">&#10024;</span>
+      <span class="nav-label">Highlights</span>
+    </button>
+    <button id="nav-essays" class="nav-btn" onclick="showView('essays')">
+      <span class="nav-icon">&#9997;</span>
+      <span class="nav-label">Essays</span>
+    </button>
+  </nav>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+  <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+  <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+  <script src="app.js"></script>
+</body>
+</html>
