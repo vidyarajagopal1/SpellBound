@@ -890,11 +890,88 @@ async function addWishlistItem(event) {
   loadWishlist();
 }
 
+// ─── VOICE INPUT ─────────────────────────────────────────────────────────────
+function initVoice() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) return; // silently skip unsupported browsers
+
+  let activeRecognition = null;
+  let activeBtn         = null;
+
+  document.querySelectorAll('.form input[type="text"], .form textarea').forEach(field => {
+    // Wrap field in a relative container
+    const wrapper = document.createElement('div');
+    wrapper.className = 'voice-field';
+    field.parentNode.insertBefore(wrapper, field);
+    wrapper.appendChild(field);
+
+    // Mic button
+    const btn = document.createElement('button');
+    btn.type      = 'button';
+    btn.className = 'mic-btn';
+    btn.innerHTML = '&#127908;';
+    btn.title     = 'Tap to dictate';
+    wrapper.appendChild(btn);
+
+    btn.addEventListener('click', () => {
+      // Stop any other active recognition
+      if (activeRecognition && activeBtn !== btn) {
+        activeRecognition.stop();
+        activeBtn.classList.remove('listening');
+        activeBtn.innerHTML = '&#127908;';
+      }
+
+      // Toggle off if already listening on this field
+      if (activeBtn === btn && activeRecognition) {
+        activeRecognition.stop();
+        return;
+      }
+
+      const recognition       = new SpeechRecognition();
+      recognition.lang        = 'en-US';
+      recognition.interimResults = true;
+      recognition.continuous  = false;
+
+      activeRecognition = recognition;
+      activeBtn         = btn;
+      btn.classList.add('listening');
+      btn.innerHTML = '&#9679;';
+
+      recognition.onresult = e => {
+        let interim = '';
+        let final   = '';
+        for (const result of e.results) {
+          if (result.isFinal) final   += result[0].transcript;
+          else                interim += result[0].transcript;
+        }
+        field.value = final || interim;
+      };
+
+      recognition.onend = () => {
+        btn.classList.remove('listening');
+        btn.innerHTML     = '&#127908;';
+        activeRecognition = null;
+        activeBtn         = null;
+      };
+
+      recognition.onerror = () => {
+        btn.classList.remove('listening');
+        btn.innerHTML     = '&#127908;';
+        activeRecognition = null;
+        activeBtn         = null;
+      };
+
+      recognition.start();
+    });
+  });
+}
+
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
 async function boot() {
   await openDB();
   await loadData();
   initializeForms();
+  initVoice();
   showView('home');
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(console.error);
