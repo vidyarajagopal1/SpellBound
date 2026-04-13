@@ -315,6 +315,8 @@ function makeDraggableList(listEl, onReorder) {
 
 // ─── NAVIGATION ───────────────────────────────────────────────────────────────
 function showView(view) {
+  if (view !== 'book-detail')  currentBookId  = null;
+  if (view !== 'essay-detail') currentEssayId = null;
   document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
   document.getElementById(view + '-view').classList.remove('hidden');
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
