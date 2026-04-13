@@ -134,6 +134,7 @@ function maybeInitSync() {
   updateSyncStatus('Tap to sign in with Google ↗', true);
   tokenClient.callback = async resp => {
     if (resp.error) { updateSyncStatus('Tap to sign in with Google ↗', true); return; }
+    gapi.client.setToken({ access_token: resp.access_token });
     await syncFromDrive();
   };
   tokenClient.requestAccessToken({ prompt: '' });
@@ -142,6 +143,7 @@ function maybeInitSync() {
 function signIn() {
   tokenClient.callback = async resp => {
     if (resp.error) { updateSyncStatus('Sign-in failed', true); return; }
+    gapi.client.setToken({ access_token: resp.access_token });
     await syncFromDrive();
   };
   tokenClient.requestAccessToken({ prompt: 'consent' });
