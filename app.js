@@ -341,12 +341,14 @@ async function loadHome() {
     (readingBooks.length === 0
       ? '<p class="home-empty">Nothing on the go yet.</p>'
       : `<div class="home-covers">${readingBooks.map(b =>
-          `<div class="book-cover" onclick="openBook(${b.id})" style="background-color:${getCoverColor(b.category)}">
-            <div class="book-cover-spine"></div>
+          `<div class="book-cover${b.coverUrl ? ' book-cover-has-img' : ''}" onclick="openBook(${b.id})" style="${b.coverUrl ? '' : `background-color:${getCoverColor(b.category)}`}">
+            ${b.coverUrl
+              ? `<img class="book-cover-img" src="${b.coverUrl}" alt="${b.title}" onerror="this.parentElement.classList.remove('book-cover-has-img');this.remove()">`
+              : `<div class="book-cover-spine"></div>
             <div class="book-cover-body">
               <h3 class="book-cover-title">${b.title}</h3>
               <p class="book-cover-category">${b.category}</p>
-            </div>
+            </div>`}
             ${getMediumIcon(b.medium) ? `<span class="book-cover-medium">${getMediumIcon(b.medium)}</span>` : ''}
           </div>`).join('')}</div>`);
 
@@ -408,12 +410,14 @@ function loadBooks() {
         <h2 class="books-group-heading">${status}<span class="books-group-count">${group.length}</span></h2>
         <div class="home-covers">
           ${group.map(b => `
-            <div class="book-cover" onclick="openBook(${b.id})" style="background-color:${getCoverColor(b.category)}">
-              <div class="book-cover-spine"></div>
+            <div class="book-cover${b.coverUrl ? ' book-cover-has-img' : ''}" onclick="openBook(${b.id})" style="${b.coverUrl ? '' : `background-color:${getCoverColor(b.category)}`}">
+              ${b.coverUrl
+                ? `<img class="book-cover-img" src="${b.coverUrl}" alt="${b.title}" onerror="this.parentElement.classList.remove('book-cover-has-img');this.remove()">`
+                : `<div class="book-cover-spine"></div>
               <div class="book-cover-body">
                 <h3 class="book-cover-title">${b.title}</h3>
                 <p class="book-cover-category">${b.category}</p>
-              </div>
+              </div>`}
               ${getMediumIcon(b.medium) ? `<span class="book-cover-medium">${getMediumIcon(b.medium)}</span>` : ''}
               <button onclick="handleDeleteBook(${b.id}, event)" class="delete-btn book-cover-delete" title="Delete">&#128465;</button>
             </div>`).join('')}
@@ -471,8 +475,127 @@ function openBook(id) {
   document.getElementById('book-detail-view').classList.remove('hidden');
 }
 
+// ─── GOOGLE BOOKS LOOKUP ─────────────────────────────────────────────────────
+const CATEGORY_MAP = [
+  [/graphic|comic|manga/i,          'Graphic Novels'],
+  [/histor/i,                        'History'],
+  [/politic|government/i,            'Politics'],
+  [/philosoph/i,                     'Philosophy'],
+  [/fiction/i,                       'Fiction'],
+];
+
+function mapCategory(googleCats) {
+  if (!googleCats || googleCats.length === 0) return 'Non-Fiction';
+  const joined = googleCats.join(' ');
+  for (const [re, cat] of CATEGORY_MAP) {
+    if (re.test(joined)) return cat;
+  }
+  return 'Non-Fiction';
+}
+
+let _lookupTimer   = null;
+let _categoryManualAdd  = false;
+let _categoryManualEdit = false;
+
+function markCategoryManual(form) {
+  if (form === 'add')  _categoryManualAdd  = true;
+  if (form === 'edit') _categoryManualEdit = true;
+}
+
+function debounceBookLookup(form) {
+  clearTimeout(_lookupTimer);
+  const titleEl = document.getElementById(form === 'add' ? 'book-title-input' : 'edit-book-title');
+  const sugEl   = document.getElementById(form === 'add' ? 'add-book-suggestions' : 'edit-book-suggestions');
+  const title   = titleEl.value.trim();
+  if (title.length < 2) { sugEl.classList.add('hidden'); sugEl.innerHTML = ''; return; }
+  sugEl.classList.remove('hidden');
+  sugEl.innerHTML = '<p class="book-lookup-loading">Looking up…</p>';
+  _lookupTimer = setTimeout(() => fetchGoogleBooks(title, form), 2000);
+}
+
+function triggerEditBookLookup() {
+  const title = document.getElementById('edit-book-title').value.trim();
+  if (!title) return;
+  const sugEl = document.getElementById('edit-book-suggestions');
+  sugEl.classList.remove('hidden');
+  sugEl.innerHTML = '<p class="book-lookup-loading">Looking up…</p>';
+  fetchGoogleBooks(title, 'edit');
+}
+
+async function fetchGoogleBooks(title, form) {
+  const sugEl = document.getElementById(form === 'add' ? 'add-book-suggestions' : 'edit-book-suggestions');
+  try {
+    const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(title)}&maxResults=3&fields=items(volumeInfo(title,authors,categories,imageLinks))`;
+    const res  = await fetch(url);
+    const data = await res.json();
+    if (!data.items || data.items.length === 0) {
+      sugEl.innerHTML = '<p class="book-lookup-loading">No results found.</p>';
+      return;
+    }
+    renderBookSuggestions(data.items, form, sugEl);
+  } catch {
+    sugEl.innerHTML = '<p class="book-lookup-loading">Lookup failed.</p>';
+  }
+}
+
+function renderBookSuggestions(items, form, sugEl) {
+  const cards = items.map((item, i) => {
+    const v       = item.volumeInfo || {};
+    const title   = v.title || '';
+    const author  = (v.authors || []).join(', ');
+    const cat     = mapCategory(v.categories);
+    const thumb   = v.imageLinks?.thumbnail?.replace('http://', 'https://') || '';
+    return `<div class="book-suggestion-card" onclick="applyBookSuggestion(${i}, '${form}')">
+      ${thumb ? `<img class="book-sug-thumb" src="${thumb}" alt="">` : `<div class="book-sug-thumb book-sug-thumb-placeholder"></div>`}
+      <div class="book-sug-info">
+        <div class="book-sug-title">${title}</div>
+        ${author ? `<div class="book-sug-author">${author}</div>` : ''}
+        <div class="book-sug-category">${cat}</div>
+      </div>
+    </div>`;
+  }).join('');
+  sugEl.innerHTML = cards +
+    `<button type="button" class="book-sug-none" onclick="document.getElementById('${form === 'add' ? 'add' : 'edit'}-book-suggestions').classList.add('hidden')">None of these</button>`;
+  // stash data for apply
+  sugEl._suggestions = items.map(item => {
+    const v = item.volumeInfo || {};
+    return {
+      title:    v.title || '',
+      author:   (v.authors || []).join(', '),
+      category: mapCategory(v.categories),
+      coverUrl: v.imageLinks?.thumbnail?.replace('http://', 'https://') || '',
+    };
+  });
+}
+
+function applyBookSuggestion(index, form) {
+  const sugEl = document.getElementById(form === 'add' ? 'add-book-suggestions' : 'edit-book-suggestions');
+  const s     = sugEl._suggestions[index];
+  if (!s) return;
+  if (form === 'add') {
+    document.getElementById('book-title-input').value   = s.title;
+    document.getElementById('book-author-input').value  = s.author;
+    document.getElementById('book-cover-url-input').value = s.coverUrl;
+    if (!_categoryManualAdd) {
+      document.getElementById('book-category-input').value = s.category;
+      toggleAddBookFields();
+    }
+  } else {
+    document.getElementById('edit-book-title').value      = s.title;
+    document.getElementById('edit-book-author').value     = s.author;
+    document.getElementById('edit-book-cover-url').value  = s.coverUrl;
+    if (!_categoryManualEdit) {
+      document.getElementById('edit-book-category').value = s.category;
+      toggleCompletionFields();
+    }
+  }
+  sugEl.classList.add('hidden');
+}
+
 // ─── ADD BOOK ─────────────────────────────────────────────────────────────────
 function showAddBookForm() {
+  _categoryManualAdd = false;
+  document.getElementById('add-book-suggestions').classList.add('hidden');
   document.getElementById('add-book-form').classList.remove('hidden');
   document.getElementById('add-book-form').style.display = 'flex';
   toggleAddBookFields();
@@ -492,6 +615,7 @@ async function addBook(event) {
     id:                 nextId(books),
     title:              document.getElementById('book-title-input').value,
     author:             document.getElementById('book-author-input').value,
+    coverUrl:           document.getElementById('book-cover-url-input').value,
     status:             document.getElementById('book-status-input').value,
     category:           document.getElementById('book-category-input').value,
     medium:             document.querySelector('#add-book-medium-group .medium-btn.active')?.dataset.value || '',
@@ -502,7 +626,7 @@ async function addBook(event) {
   };
   await dbPut('books', book);
   hideForm();
-  ['book-title-input','book-author-input','book-notes-input','book-aftertaste-input','book-fav-char-input','book-date-completed-input'].forEach(id => document.getElementById(id).value = '');
+  ['book-title-input','book-author-input','book-cover-url-input','book-notes-input','book-aftertaste-input','book-fav-char-input','book-date-completed-input'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('book-status-input').value   = 'Reading';
   document.getElementById('book-category-input').value = 'Fiction';
   document.getElementById('add-book-completion-fields').style.display = 'none';
@@ -514,10 +638,12 @@ async function addBook(event) {
 
 // ─── EDIT BOOK ────────────────────────────────────────────────────────────────
 function showEditBookForm() {
+  _categoryManualEdit = false;
   const book = books.find(b => b.id === currentBookId);
   if (!book) return;
   document.getElementById('edit-book-title').value          = book.title;
   document.getElementById('edit-book-author').value         = book.author || '';
+  document.getElementById('edit-book-cover-url').value      = book.coverUrl || '';
   document.getElementById('edit-book-status').value         = book.status;
   document.getElementById('edit-book-category').value       = book.category;
   document.getElementById('edit-book-notes').value          = book.notes || '';
@@ -544,6 +670,7 @@ async function updateBook(event) {
     id:                 currentBookId,
     title:              document.getElementById('edit-book-title').value,
     author:             document.getElementById('edit-book-author').value,
+    coverUrl:           document.getElementById('edit-book-cover-url').value,
     status:             document.getElementById('edit-book-status').value,
     category:           document.getElementById('edit-book-category').value,
     medium:             document.querySelector('#edit-book-medium-group .medium-btn.active')?.dataset.value || '',

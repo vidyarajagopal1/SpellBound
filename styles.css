@@ -123,6 +123,16 @@ main { min-height: 100%; }
   transition: transform 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
+.book-cover-has-img {
+  background: #111 !important;
+}
+.book-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: var(--radius);
+}
 .book-cover:active { transform: scale(0.97); }
 .book-cover-spine {
   width: 10px;
@@ -748,6 +758,69 @@ main { min-height: 100%; }
 @keyframes mic-pulse-textarea {
   from { opacity: 1;   transform: scale(1);    }
   to   { opacity: 0.5; transform: scale(1.25); }
+}
+
+/* ─── BOOK LOOKUP SUGGESTIONS ───────────────────────────────────────────────── */
+.book-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.book-suggestions.hidden { display: none; }
+.book-lookup-loading {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: 4px 0;
+  font-style: italic;
+}
+.book-suggestion-card {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: var(--surface2);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.book-suggestion-card:active { border-color: var(--accent); }
+.book-sug-thumb {
+  width: 44px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.book-sug-thumb-placeholder {
+  background: var(--surface);
+  border-radius: 4px;
+}
+.book-sug-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.book-sug-title  { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.book-sug-author { font-size: 0.75rem; color: var(--text-muted); font-style: italic; }
+.book-sug-category { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.book-sug-none {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 4px 0;
+  text-align: left;
+  text-decoration: underline;
+}
+.lookup-btn {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  padding: 6px 12px;
+  cursor: pointer;
+  margin-bottom: 8px;
+  align-self: flex-start;
 }
 
 /* ─── CATEGORY MODAL ─────────────────────────────────────────────────────────── */
