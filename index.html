@@ -122,7 +122,6 @@
         <label for="book-title-input">Title</label>
         <input type="text" id="book-title-input" placeholder="Title" required oninput="debounceBookLookup('add')">
         <div id="add-book-suggestions" class="book-suggestions hidden"></div>
-        <input type="hidden" id="book-cover-url-input">
         <label for="book-author-input">Author <span style="font-weight:normal;color:#888;">(optional)</span></label>
         <input type="text" id="book-author-input" placeholder="Author">
         <label for="book-status-input">Status</label>
@@ -170,7 +169,6 @@
         <input type="text" id="edit-book-title" required>
         <button type="button" class="lookup-btn" onclick="triggerEditBookLookup()">&#128269; Look up</button>
         <div id="edit-book-suggestions" class="book-suggestions hidden"></div>
-        <input type="hidden" id="edit-book-cover-url">
         <label for="edit-book-author">Author <span style="font-weight:normal;color:#888;">(optional)</span></label>
         <input type="text" id="edit-book-author" placeholder="Author">
         <label for="edit-book-status">Status</label>

@@ -341,14 +341,12 @@ async function loadHome() {
     (readingBooks.length === 0
       ? '<p class="home-empty">Nothing on the go yet.</p>'
       : `<div class="home-covers">${readingBooks.map(b =>
-          `<div class="book-cover${b.coverUrl ? ' book-cover-has-img' : ''}" onclick="openBook(${b.id})" style="${b.coverUrl ? '' : `background-color:${getCoverColor(b.category)}`}">
-            ${b.coverUrl
-              ? `<img class="book-cover-img" src="${b.coverUrl}" alt="${b.title}" onerror="this.parentElement.classList.remove('book-cover-has-img');this.remove()">`
-              : `<div class="book-cover-spine"></div>
+          `<div class="book-cover" onclick="openBook(${b.id})" style="background-color:${getCoverColor(b.category)}">
+            <div class="book-cover-spine"></div>
             <div class="book-cover-body">
               <h3 class="book-cover-title">${b.title}</h3>
               <p class="book-cover-category">${b.category}</p>
-            </div>`}
+            </div>
             ${getMediumIcon(b.medium) ? `<span class="book-cover-medium">${getMediumIcon(b.medium)}</span>` : ''}
           </div>`).join('')}</div>`);
 
@@ -410,14 +408,12 @@ function loadBooks() {
         <h2 class="books-group-heading">${status}<span class="books-group-count">${group.length}</span></h2>
         <div class="home-covers">
           ${group.map(b => `
-            <div class="book-cover${b.coverUrl ? ' book-cover-has-img' : ''}" onclick="openBook(${b.id})" style="${b.coverUrl ? '' : `background-color:${getCoverColor(b.category)}`}">
-              ${b.coverUrl
-                ? `<img class="book-cover-img" src="${b.coverUrl}" alt="${b.title}" onerror="this.parentElement.classList.remove('book-cover-has-img');this.remove()">`
-                : `<div class="book-cover-spine"></div>
+            <div class="book-cover" onclick="openBook(${b.id})" style="background-color:${getCoverColor(b.category)}">
+              <div class="book-cover-spine"></div>
               <div class="book-cover-body">
                 <h3 class="book-cover-title">${b.title}</h3>
                 <p class="book-cover-category">${b.category}</p>
-              </div>`}
+              </div>
               ${getMediumIcon(b.medium) ? `<span class="book-cover-medium">${getMediumIcon(b.medium)}</span>` : ''}
               <button onclick="handleDeleteBook(${b.id}, event)" class="delete-btn book-cover-delete" title="Delete">&#128465;</button>
             </div>`).join('')}
@@ -575,7 +571,6 @@ function applyBookSuggestion(index, form) {
   if (form === 'add') {
     document.getElementById('book-title-input').value   = s.title;
     document.getElementById('book-author-input').value  = s.author;
-    document.getElementById('book-cover-url-input').value = s.coverUrl;
     if (!_categoryManualAdd) {
       document.getElementById('book-category-input').value = s.category;
       toggleAddBookFields();
@@ -583,7 +578,6 @@ function applyBookSuggestion(index, form) {
   } else {
     document.getElementById('edit-book-title').value      = s.title;
     document.getElementById('edit-book-author').value     = s.author;
-    document.getElementById('edit-book-cover-url').value  = s.coverUrl;
     if (!_categoryManualEdit) {
       document.getElementById('edit-book-category').value = s.category;
       toggleCompletionFields();
@@ -615,7 +609,6 @@ async function addBook(event) {
     id:                 nextId(books),
     title:              document.getElementById('book-title-input').value,
     author:             document.getElementById('book-author-input').value,
-    coverUrl:           document.getElementById('book-cover-url-input').value,
     status:             document.getElementById('book-status-input').value,
     category:           document.getElementById('book-category-input').value,
     medium:             document.querySelector('#add-book-medium-group .medium-btn.active')?.dataset.value || '',
@@ -626,7 +619,7 @@ async function addBook(event) {
   };
   await dbPut('books', book);
   hideForm();
-  ['book-title-input','book-author-input','book-cover-url-input','book-notes-input','book-aftertaste-input','book-fav-char-input','book-date-completed-input'].forEach(id => document.getElementById(id).value = '');
+  ['book-title-input','book-author-input','book-notes-input','book-aftertaste-input','book-fav-char-input','book-date-completed-input'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('book-status-input').value   = 'Reading';
   document.getElementById('book-category-input').value = 'Fiction';
   document.getElementById('add-book-completion-fields').style.display = 'none';
@@ -643,7 +636,6 @@ function showEditBookForm() {
   if (!book) return;
   document.getElementById('edit-book-title').value          = book.title;
   document.getElementById('edit-book-author').value         = book.author || '';
-  document.getElementById('edit-book-cover-url').value      = book.coverUrl || '';
   document.getElementById('edit-book-status').value         = book.status;
   document.getElementById('edit-book-category').value       = book.category;
   document.getElementById('edit-book-notes').value          = book.notes || '';
@@ -670,7 +662,6 @@ async function updateBook(event) {
     id:                 currentBookId,
     title:              document.getElementById('edit-book-title').value,
     author:             document.getElementById('edit-book-author').value,
-    coverUrl:           document.getElementById('edit-book-cover-url').value,
     status:             document.getElementById('edit-book-status').value,
     category:           document.getElementById('edit-book-category').value,
     medium:             document.querySelector('#edit-book-medium-group .medium-btn.active')?.dataset.value || '',
