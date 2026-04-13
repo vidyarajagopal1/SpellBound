@@ -615,7 +615,7 @@ async function addBook(event) {
     status:             document.getElementById('book-status-input').value,
     category:           document.getElementById('book-category-input').value,
     rating:             document.querySelector('#add-book-rating-group .rating-btn.active')?.dataset.value || '',
-    medium:             document.querySelector('#add-book-medium-group .medium-btn.active')?.dataset.value || '',,
+    medium:             document.querySelector('#add-book-medium-group .medium-btn.active')?.dataset.value || '',
     dateCompleted:      document.getElementById('book-date-completed-input').value,
     notes:              document.getElementById('book-notes-input').value,
     aftertaste:         document.getElementById('book-aftertaste-input').value,
