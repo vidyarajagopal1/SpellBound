@@ -126,8 +126,9 @@ function gisLoaded() {
 
 function maybeInitSync() {
   if (!gapiReady || !gisReady) return;
+  updateSyncStatus('Tap to sign in with Google ↗', true);
   tokenClient.callback = async resp => {
-    if (resp.error) { updateSyncStatus('Not signed in — tap to sign in', true); return; }
+    if (resp.error) { updateSyncStatus('Tap to sign in with Google ↗', true); return; }
     await syncFromDrive();
   };
   tokenClient.requestAccessToken({ prompt: '' });
