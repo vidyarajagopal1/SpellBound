@@ -525,7 +525,7 @@ function triggerEditBookLookup() {
 async function fetchGoogleBooks(title, form) {
   const sugEl = document.getElementById(form === 'add' ? 'add-book-suggestions' : 'edit-book-suggestions');
   try {
-    const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(title)}&maxResults=3&fields=items(volumeInfo(title,authors,categories,imageLinks))`;
+    const url = `https://www.googleapis.com/books/v1/volumes?q=intitle:${encodeURIComponent(title)}&maxResults=5&fields=items(volumeInfo(title,authors,categories,imageLinks))`;
     const res  = await fetch(url);
     const data = await res.json();
     if (!data.items || data.items.length === 0) {
