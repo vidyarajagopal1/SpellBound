@@ -5,12 +5,15 @@ const DRIVE_FILE_NAME  = 'spellbound-data.json';
 const DRIVE_SCOPE      = 'https://www.googleapis.com/auth/drive.appdata';
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
-let currentBookId  = null;
-let currentEssayId = null;
-let books          = [];
-let highlights     = [];
-let essays         = [];
-let wishlist       = [];
+let currentBookId      = null;
+let currentEssayId     = null;
+let currentHighlightId = null;
+let dogEaredId         = null;
+let books              = [];
+let highlights         = [];
+let essays             = [];
+let wishlist           = [];
+let challenges         = [];
 let gapiReady      = false;
 let gisReady       = false;
 let tokenClient;
@@ -20,14 +23,15 @@ let db;
 
 function openDB() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open('SpellBoundDB', 2);
+    const req = indexedDB.open('SpellBoundDB', 3);
     req.onupgradeneeded = e => {
       const d = e.target.result;
-      if (!d.objectStoreNames.contains('books'))      d.createObjectStore('books',      { keyPath: 'id', autoIncrement: true });
-      if (!d.objectStoreNames.contains('highlights')) d.createObjectStore('highlights', { keyPath: 'id', autoIncrement: true });
-      if (!d.objectStoreNames.contains('essays'))     d.createObjectStore('essays',     { keyPath: 'id', autoIncrement: true });
-      if (!d.objectStoreNames.contains('wishlist'))   d.createObjectStore('wishlist',   { keyPath: 'id', autoIncrement: true });
-      if (!d.objectStoreNames.contains('meta'))       d.createObjectStore('meta',       { keyPath: 'key' });
+      if (!d.objectStoreNames.contains('books'))       d.createObjectStore('books',       { keyPath: 'id', autoIncrement: true });
+      if (!d.objectStoreNames.contains('highlights'))  d.createObjectStore('highlights',  { keyPath: 'id', autoIncrement: true });
+      if (!d.objectStoreNames.contains('essays'))      d.createObjectStore('essays',      { keyPath: 'id', autoIncrement: true });
+      if (!d.objectStoreNames.contains('wishlist'))    d.createObjectStore('wishlist',    { keyPath: 'id', autoIncrement: true });
+      if (!d.objectStoreNames.contains('meta'))        d.createObjectStore('meta',        { keyPath: 'key' });
+      if (!d.objectStoreNames.contains('challenges'))  d.createObjectStore('challenges',  { keyPath: 'id', autoIncrement: true });
     };
     req.onsuccess = e => { db = e.target.result; resolve(db); };
     req.onerror   = e => reject(e.target.error);
@@ -98,6 +102,7 @@ async function loadData() {
   highlights = await dbGetAll('highlights');
   essays     = await dbGetAll('essays');
   wishlist   = await dbGetAll('wishlist');
+  challenges = await dbGetAll('challenges');
 }
 
 async function saveAndSync() {
@@ -174,10 +179,12 @@ async function syncFromDrive() {
       await dbClear('highlights');
       await dbClear('essays');
       await dbClear('wishlist');
-      for (const b of (data.books      || [])) await dbPut('books',      b);
-      for (const h of (data.highlights || [])) await dbPut('highlights', h);
-      for (const e of (data.essays     || [])) await dbPut('essays',     e);
-      for (const w of (data.wishlist   || [])) await dbPut('wishlist',   w);
+      await dbClear('challenges');
+      for (const b of (data.books       || [])) await dbPut('books',       b);
+      for (const h of (data.highlights  || [])) await dbPut('highlights',  h);
+      for (const e of (data.essays      || [])) await dbPut('essays',      e);
+      for (const w of (data.wishlist    || [])) await dbPut('wishlist',    w);
+      for (const c of (data.challenges  || [])) await dbPut('challenges',  c);
       if (data.waitlistOrder) await dbSetMeta('waitlist-order', data.waitlistOrder);
       await loadData();
       refreshCurrentView();
@@ -195,7 +202,7 @@ async function syncToDrive() {
   if (!gapiReady || !gapi.client.getToken()) return;
   try {
     const waitlistOrder = await dbGetMeta('waitlist-order') || [];
-    const payload  = JSON.stringify({ books, highlights, essays, wishlist, waitlistOrder });
+    const payload  = JSON.stringify({ books, highlights, essays, wishlist, challenges, waitlistOrder });
     const file     = await getDriveFileId();
     const method   = file ? 'PATCH' : 'POST';
     const fileId   = file ? `/${file.id}` : '';
@@ -241,13 +248,15 @@ function refreshCurrentView() {
   const active = document.querySelector('.view:not(.hidden)');
   if (!active) return;
   const id = active.id;
-  if      (id === 'home-view')           loadHome();
-  else if (id === 'books-view')          loadBooks();
-  else if (id === 'highlights-view')     loadHighlights();
-  else if (id === 'essays-view')         loadEssays();
-  else if (id === 'book-detail-view'   && currentBookId)  openBook(currentBookId);
-  else if (id === 'essay-detail-view'  && currentEssayId) openEssay(currentEssayId);
-  else if (id === 'wishlist-view')       loadWishlist();
+  if      (id === 'home-view')             loadHome();
+  else if (id === 'books-view')            loadBooks();
+  else if (id === 'highlights-view')       loadHighlights();
+  else if (id === 'essays-view')           loadEssays();
+  else if (id === 'book-detail-view'     && currentBookId)      openBook(currentBookId);
+  else if (id === 'essay-detail-view'    && currentEssayId)     openEssay(currentEssayId);
+  else if (id === 'highlight-detail-view'&& currentHighlightId) openHighlightDetail(currentHighlightId);
+  else if (id === 'wishlist-view')         loadWishlist();
+  else if (id === 'sprint-view')           loadSprint();
 }
 
 async function saveWaitlistOrder(order) {
@@ -316,8 +325,9 @@ function makeDraggableList(listEl, onReorder) {
 
 // ─── NAVIGATION ───────────────────────────────────────────────────────────────
 function showView(view) {
-  if (view !== 'book-detail')  currentBookId  = null;
-  if (view !== 'essay-detail') currentEssayId = null;
+  if (view !== 'book-detail')      currentBookId      = null;
+  if (view !== 'essay-detail')     currentEssayId     = null;
+  if (view !== 'highlight-detail') currentHighlightId = null;
   document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
   document.getElementById(view + '-view').classList.remove('hidden');
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
@@ -328,13 +338,13 @@ function showView(view) {
   if (view === 'highlights') loadHighlights();
   if (view === 'essays')     loadEssays();
   if (view === 'wishlist')   loadWishlist();
+  if (view === 'sprint')     loadSprint();
 }
 
 // ─── HOME ─────────────────────────────────────────────────────────────────────
 async function loadHome() {
-  const readingBooks     = books.filter(b => b.status === 'Reading');
-  const waitlistedBooks  = books.filter(b => b.status === 'Waitlisted');
-  const recentHighlights = highlights.slice(-5).reverse();
+  const readingBooks    = books.filter(b => b.status === 'Reading');
+  const waitlistedBooks = books.filter(b => b.status === 'Waitlisted');
 
   document.getElementById('reading-books').innerHTML =
     '<h2 class="home-section-title">Currently Reading</h2>' +
@@ -349,22 +359,13 @@ async function loadHome() {
             </div>
             ${getMediumIcon(b.medium) ? `<span class="book-cover-medium">${getMediumIcon(b.medium)}</span>` : ''}
             ${b.rating && RATING_LABELS[b.rating] ? `<span class="book-cover-rating">${RATING_LABELS[b.rating].icon}</span>` : ''}
-          </div>`).join('')}</div>`);
+          </div>`).join('')}</div>` +
+        renderStaleNudges(readingBooks));
 
-  document.getElementById('recent-highlights').innerHTML =
-    '<h2 class="home-section-title">Recent Highlights</h2>' +
-    (recentHighlights.length === 0
-      ? '<p class="home-empty">No highlights saved yet.</p>'
-      : recentHighlights.map(h => {
-          const book = books.find(b => b.id === h.bookId);
-          return `<div class="home-quote-card" onclick="openBook(${h.bookId})">
-            <span class="home-quote-mark">&ldquo;</span>
-            <p class="home-quote-text">${h.text}</p>
-            <p class="home-quote-source">&mdash; ${book ? book.title : 'Unknown'}</p>
-          </div>`;
-        }).join(''));
+  renderDogEared();
 
   // Sort waitlist by saved order
+
   const savedOrder = await dbGetMeta('waitlist-order') || [];
   const ordered = [
     ...savedOrder.map(id => waitlistedBooks.find(b => b.id === id)).filter(Boolean),
@@ -391,6 +392,84 @@ async function loadHome() {
     waitlistContainer.appendChild(listEl);
     makeDraggableList(listEl, saveWaitlistOrder);
   }
+}
+
+function renderStaleNudges(readingBooks) {
+  const TEN_DAYS = 10 * 24 * 60 * 60 * 1000;
+  const now      = Date.now();
+  const stale    = readingBooks.filter(b => {
+    const lastEdit      = b.updatedAt  ? new Date(b.updatedAt).getTime()  : 0;
+    const lastHighlight = highlights
+      .filter(h => h.bookId === b.id && h.savedAt)
+      .reduce((max, h) => Math.max(max, new Date(h.savedAt).getTime()), 0);
+    const lastActivity = Math.max(lastEdit, lastHighlight);
+    return lastActivity === 0 || (now - lastActivity) > TEN_DAYS;
+  });
+  if (stale.length === 0) return '';
+  return stale.map(b =>
+    `<div class="stale-nudge" onclick="this.remove()" title="Dismiss">
+      <span class="stale-nudge-text">📚 If <em>${b.title}</em> were a library book, you'd owe a fine by now!</span>
+      <span class="stale-nudge-dismiss">✕</span>
+    </div>`
+  ).join('');
+}
+
+function renderDogEared(excludeId) {
+  const container = document.getElementById('dog-eared');
+  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const hasSavedAt   = highlights.some(h => h.savedAt);
+  const hasRecent    = highlights.some(h => h.savedAt && new Date(h.savedAt).getTime() > sevenDaysAgo);
+  const showEmpty    = highlights.length === 0 || (hasSavedAt && !hasRecent);
+
+  const heading = `
+    <div class="dog-eared-header">
+      <h2 class="home-section-title">The pages you've dog&#8209;eared</h2>
+      ${!showEmpty ? `<button class="dog-eared-refresh" onclick="refreshDogEared()" title="Show another">&#8635;</button>` : ''}
+    </div>`;
+
+  if (showEmpty) {
+    container.innerHTML = heading + `
+      <div class="dog-eared-empty">
+        <p class="dog-eared-empty-quote">&ldquo;There is no friend as loyal as a book.<br>And you didn&rsquo;t save a single thing it said? 💔&rdquo;</p>
+        <button class="dog-eared-add-btn" onclick="showAddHighlightForm()">Add Highlight</button>
+      </div>`;
+    return;
+  }
+
+  const pool = excludeId ? highlights.filter(h => h.id !== excludeId) : highlights;
+  const pick = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : highlights[0];
+  dogEaredId   = pick.id;
+  const book   = books.find(b => b.id === pick.bookId);
+  const col    = book ? getCoverColor(book.category) : '#3a5a8c';
+
+  container.innerHTML = heading + `
+    <div class="home-quote-card dog-eared-card" onclick="openHighlightDetail(${pick.id})" style="border-left-color:${col}">
+      <span class="home-quote-mark">&ldquo;</span>
+      <p class="home-quote-text">${pick.text}</p>
+      <p class="home-quote-source">&mdash; ${book ? book.title : 'Unknown'}</p>
+    </div>`;
+}
+
+function refreshDogEared() {
+  renderDogEared(dogEaredId);
+}
+
+function openHighlightDetail(id) {
+  currentHighlightId = id;
+  const h    = highlights.find(h => h.id === id);
+  const book = h ? books.find(b => b.id === h.bookId) : null;
+  if (!h) return;
+  const col = book ? getCoverColor(book.category) : '#3a5a8c';
+  document.getElementById('highlight-detail-content').innerHTML = `
+    <div class="highlight-detail-card" style="border-left-color:${col}">
+      <span class="highlight-detail-mark">&ldquo;</span>
+      <p class="highlight-detail-text">${h.text}</p>
+      <p class="highlight-detail-source">&mdash; ${book ? book.title : 'Unknown'}</p>
+      ${h.whyItStayed ? `<div class="highlight-detail-section"><span class="highlight-detail-label">Reflection</span><p class="highlight-detail-body">${h.whyItStayed}</p></div>` : ''}
+      ${h.date ? `<div class="highlight-detail-section"><span class="highlight-detail-label">Date</span><p class="highlight-detail-body">${formatDate(h.date)}</p></div>` : ''}
+    </div>`;
+  document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+  document.getElementById('highlight-detail-view').classList.remove('hidden');
 }
 
 // ─── BOOKS ────────────────────────────────────────────────────────────────────
@@ -620,6 +699,7 @@ async function addBook(event) {
     notes:              document.getElementById('book-notes-input').value,
     aftertaste:         document.getElementById('book-aftertaste-input').value,
     favouriteCharacter: document.getElementById('book-fav-char-input').value,
+    updatedAt:          new Date().toISOString(),
   };
   await dbPut('books', book);
   hideForm();
@@ -676,6 +756,7 @@ async function updateBook(event) {
     aftertaste:         document.getElementById('edit-book-aftertaste').value,
     favouriteCharacter: document.getElementById('edit-book-fav-char').value,
     dateCompleted:      document.getElementById('edit-book-date-completed').value,
+    updatedAt:          new Date().toISOString(),
   };
   await dbPut('books', book);
   hideForm();
@@ -768,7 +849,7 @@ async function addHighlight(event) {
       bookId = newBook.id;
     }
   }
-  const h = { id: nextId(highlights), text, bookId, whyItStayed, date };
+  const h = { id: nextId(highlights), text, bookId, whyItStayed, date, savedAt: new Date().toISOString() };
   await dbPut('highlights', h);
   hideForm();
   ['highlight-text-input','why-stayed-input','highlight-date-input','new-book-title'].forEach(id => document.getElementById(id).value = '');
@@ -894,9 +975,10 @@ function setMediumBtn(groupSelector, value) {
 }
 
 const RATING_LABELS = {
-  forgot:   { icon: '\u{1F636}', label: 'Already forgot the plot' },
-  rentfree: { icon: '\u{1F9E0}', label: 'Rent-free in my head' },
-  wrecked:  { icon: '\u{1F525}', label: 'Wrecked me (in a good way)' },
+  forgot:    { icon: '\u{1F636}', label: 'Already forgot the plot' },
+  goodwhile: { icon: '\u{1F342}', label: 'It was good while it lasted' },
+  rentfree:  { icon: '\u{1F9E0}', label: 'Rent-free in my head' },
+  wrecked:   { icon: '\u{1F525}', label: 'Wrecked me (in a good way)' },
 };
 
 function setRatingBtn(groupSelector, value) {
@@ -1275,6 +1357,148 @@ function initVoice() {
       recognition.start();
     });
   });
+}
+
+// ─── SPRINT ───────────────────────────────────────────────────────────────────
+function loadSprint() {
+  renderSprintActive();
+  renderSprintAchieved();
+  renderSprintArchived();
+}
+
+function showSprintForm() {
+  document.getElementById('sprint-form').classList.remove('hidden');
+  document.getElementById('sprint-name').value   = '';
+  document.getElementById('sprint-target').value = '';
+  document.getElementById('sprint-start').value  = '';
+  document.getElementById('sprint-end').value    = '';
+  document.getElementById('sprint-custom-dates').style.display = 'none';
+  document.querySelectorAll('.sprint-duration-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
+}
+
+function hideSprintForm() {
+  document.getElementById('sprint-form').classList.add('hidden');
+}
+
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.sprint-duration-btn');
+  if (!btn) return;
+  document.querySelectorAll('.sprint-duration-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('sprint-custom-dates').style.display = btn.dataset.custom ? 'block' : 'none';
+});
+
+async function saveSprint() {
+  const name   = document.getElementById('sprint-name').value.trim();
+  const target = parseInt(document.getElementById('sprint-target').value);
+  if (!name || !target || target < 1) return;
+
+  const activeBtn = document.querySelector('.sprint-duration-btn.active');
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  let startDate, endDate;
+
+  if (activeBtn.dataset.custom) {
+    startDate = document.getElementById('sprint-start').value;
+    endDate   = document.getElementById('sprint-end').value;
+    if (!startDate || !endDate) return;
+  } else {
+    startDate = today.toISOString().slice(0, 10);
+    const end = new Date(today);
+    if (activeBtn.dataset.weeks) end.setDate(end.getDate() + parseInt(activeBtn.dataset.weeks) * 7);
+    if (activeBtn.dataset.months) end.setMonth(end.getMonth() + parseInt(activeBtn.dataset.months));
+    endDate = end.toISOString().slice(0, 10);
+  }
+
+  const challenge = { id: nextId(challenges), name, target, startDate, endDate };
+  await dbPut('challenges', challenge);
+  hideSprintForm();
+  await saveAndSync();
+  loadSprint();
+}
+
+async function deleteSprint(id) {
+  if (!confirm('Delete this sprint?')) return;
+  await dbDelete('challenges', id);
+  await saveAndSync();
+  loadSprint();
+}
+
+function sprintProgress(c) {
+  return books.filter(b =>
+    b.status === 'Completed' &&
+    b.dateCompleted &&
+    b.dateCompleted >= c.startDate &&
+    b.dateCompleted <= c.endDate
+  ).length;
+}
+
+function renderSprintActive() {
+  const today  = new Date().toISOString().slice(0, 10);
+  const active = challenges.filter(c => c.endDate >= today);
+  const el     = document.getElementById('sprint-active');
+  if (active.length === 0) { el.innerHTML = ''; return; }
+
+  el.innerHTML = `<p class="sprint-section-label">Active</p>` + active.map(c => {
+    const done     = sprintProgress(c);
+    const pct      = Math.min(100, Math.round((done / c.target) * 100));
+    const daysLeft = Math.ceil((new Date(c.endDate) - new Date()) / (1000 * 60 * 60 * 24));
+    return `<div class="sprint-card">
+      <div class="sprint-card-top">
+        <span class="sprint-card-name">${c.name}</span>
+        <button class="sprint-card-delete" onclick="deleteSprint(${c.id})" title="Delete">&#215;</button>
+      </div>
+      <p class="sprint-motivation">A little reading a day keeps the existential dread at bay.</p>
+      <div class="sprint-progress-row">
+        <span class="sprint-progress-text">${done} / ${c.target} books</span>
+        <span class="sprint-days-left">${daysLeft > 0 ? daysLeft + ' day' + (daysLeft !== 1 ? 's' : '') + ' left' : 'Last day!'}</span>
+      </div>
+      <div class="sprint-bar-track"><div class="sprint-bar-fill" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function renderSprintAchieved() {
+  const today    = new Date().toISOString().slice(0, 10);
+  const achieved = challenges.filter(c => c.endDate < today && sprintProgress(c) >= c.target);
+  const el       = document.getElementById('sprint-achieved');
+  if (achieved.length === 0) { el.innerHTML = ''; return; }
+
+  el.innerHTML = `<p class="sprint-section-label">Achieved</p>` + achieved.map(c => {
+    const done = sprintProgress(c);
+    return `<div class="sprint-card sprint-card-achieved">
+      <div class="sprint-card-top">
+        <span class="sprint-card-name">${c.name}</span>
+        <button class="sprint-card-delete" onclick="deleteSprint(${c.id})" title="Delete">&#215;</button>
+      </div>
+      <p class="sprint-achieved-headline">Plot twist: you actually did it. 🎉</p>
+      <p class="sprint-achieved-sub">You said ${c.target}. You read ${done}. Respect.</p>
+      <p class="sprint-achieved-range">${formatDate(c.startDate)} – ${formatDate(c.endDate)}</p>
+    </div>`;
+  }).join('');
+}
+
+function renderSprintArchived() {
+  const today    = new Date().toISOString().slice(0, 10);
+  const archived = challenges.filter(c => c.endDate < today && sprintProgress(c) < c.target);
+  const el       = document.getElementById('sprint-archived');
+  if (archived.length === 0) { el.innerHTML = ''; return; }
+
+  el.innerHTML = `<p class="sprint-section-label">Archived</p>` + archived.map(c => {
+    const done = sprintProgress(c);
+    const pct  = Math.min(100, Math.round((done / c.target) * 100));
+    return `<div class="sprint-card sprint-card-archived">
+      <div class="sprint-card-top">
+        <span class="sprint-card-name">${c.name}</span>
+        <button class="sprint-card-delete" onclick="deleteSprint(${c.id})" title="Delete">&#215;</button>
+      </div>
+      <div class="sprint-progress-row">
+        <span class="sprint-progress-text">${done} / ${c.target} books</span>
+        <span class="sprint-achieved-range">${formatDate(c.startDate)} – ${formatDate(c.endDate)}</span>
+      </div>
+      <div class="sprint-bar-track"><div class="sprint-bar-fill sprint-bar-fill-dim" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join('');
 }
 
 // ─── BOOT ─────────────────────────────────────────────────────────────────────

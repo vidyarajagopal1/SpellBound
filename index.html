@@ -23,7 +23,7 @@
     <div id="home-view" class="view">
       <div id="reading-books"></div>
       <div class="home-bottom">
-        <div id="recent-highlights"></div>
+        <div id="dog-eared"></div>
         <div id="waitlisted-books"></div>
       </div>
     </div>
@@ -52,6 +52,14 @@
     </div>
 
     <!-- Book Detail View -->
+    <!-- Highlight Detail View -->
+    <div id="highlight-detail-view" class="view hidden">
+      <div class="highlight-detail-actions">
+        <button onclick="showView('home')">&#8592; Back</button>
+      </div>
+      <div id="highlight-detail-content"></div>
+    </div>
+
     <div id="book-detail-view" class="view hidden">
       <div class="book-detail-actions">
         <button onclick="showView('books')">&#8592; Back to Books</button>
@@ -88,6 +96,35 @@
     <div id="essays-view" class="view hidden">
       <button onclick="showAddEssayForm()">Add Essay</button>
       <div id="essays-grid" class="essays-grid"></div>
+    </div>
+
+    <!-- Sprint View -->
+    <div id="sprint-view" class="view hidden">
+      <div class="sprint-header">
+        <h2 class="sprint-page-title">Sprint</h2>
+        <button class="sprint-new-btn" onclick="showSprintForm()">+ New</button>
+      </div>
+      <div id="sprint-form" class="sprint-form hidden">
+        <input type="text" id="sprint-name" placeholder="Challenge name" required>
+        <div class="sprint-duration-row">
+          <button type="button" class="sprint-duration-btn active" data-weeks="2">2 weeks</button>
+          <button type="button" class="sprint-duration-btn" data-months="1">1 month</button>
+          <button type="button" class="sprint-duration-btn" data-months="3">3 months</button>
+          <button type="button" class="sprint-duration-btn" data-custom="true">Custom</button>
+        </div>
+        <div id="sprint-custom-dates" style="display:none;">
+          <input type="date" id="sprint-start" placeholder="Start date">
+          <input type="date" id="sprint-end" placeholder="End date">
+        </div>
+        <input type="number" id="sprint-target" placeholder="Target books" min="1" required>
+        <div class="sprint-form-actions">
+          <button type="button" onclick="saveSprint()">Start Sprint</button>
+          <button type="button" onclick="hideSprintForm()">Cancel</button>
+        </div>
+      </div>
+      <div id="sprint-active"></div>
+      <div id="sprint-achieved"></div>
+      <div id="sprint-archived"></div>
     </div>
 
     <!-- Wishlist View -->
@@ -145,6 +182,7 @@
           <label>How did it land?</label>
           <div class="rating-btn-group" id="add-book-rating-group">
             <button type="button" class="rating-btn" data-value="forgot">&#128566; Already forgot the plot</button>
+            <button type="button" class="rating-btn" data-value="goodwhile">&#127810; It was good while it lasted</button>
             <button type="button" class="rating-btn" data-value="rentfree">&#129504; Rent-free in my head</button>
             <button type="button" class="rating-btn" data-value="wrecked">&#128293; Wrecked me (in a good way)</button>
           </div>
@@ -198,6 +236,7 @@
           <label>How did it land?</label>
           <div class="rating-btn-group" id="edit-book-rating-group">
             <button type="button" class="rating-btn" data-value="forgot">&#128566; Already forgot the plot</button>
+            <button type="button" class="rating-btn" data-value="goodwhile">&#127810; It was good while it lasted</button>
             <button type="button" class="rating-btn" data-value="rentfree">&#129504; Rent-free in my head</button>
             <button type="button" class="rating-btn" data-value="wrecked">&#128293; Wrecked me (in a good way)</button>
           </div>
@@ -364,6 +403,10 @@
     <button id="nav-wishlist" class="nav-btn" onclick="showView('wishlist')">
       <span class="nav-icon">&#10084;</span>
       <span class="nav-label">Wishlist</span>
+    </button>
+    <button id="nav-sprint" class="nav-btn" onclick="showView('sprint')">
+      <span class="nav-icon">&#9889;</span>
+      <span class="nav-label">Sprint</span>
     </button>
   </nav>
 
