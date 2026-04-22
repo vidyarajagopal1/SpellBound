@@ -238,15 +238,18 @@ function formatDate(date) {
 }
 
 const COVER_COLORS = {
-  'Fiction':        '#7B3B3B',
-  'History':        '#5C4A1E',
-  'Politics':       '#2C4A6E',
-  'Philosophy':     '#4A2C6E',
-  'Graphic Novels': '#1E5C4A'
+  'Fiction':        '#C47A90',  /* warm rose-pink    */
+  'History':        '#C4A96A',  /* warm sand         */
+  'Politics':       '#6B9CB8',  /* muted sky blue    */
+  'Philosophy':     '#9B8AB8',  /* pale lavender     */
+  'Graphic Novels': '#78A882'   /* sage green        */
 };
-function getCoverColor(cat) { return COVER_COLORS[cat] || '#3a5a8c'; }
+function getCoverColor(cat) { return COVER_COLORS[cat] || '#7A8FA6'; }
 
-const MEDIUM_ICON = { kindle: '📱', audiobook: '🎧' };
+const MEDIUM_ICON = {
+  kindle:    '<i class="ph-bold ph-device-mobile"></i>',
+  audiobook: '<i class="ph-bold ph-headphones"></i>'
+};
 function getMediumIcon(medium) { return MEDIUM_ICON[medium] || ''; }
 
 function refreshCurrentView() {
@@ -352,6 +355,9 @@ function showView(view) {
 }
 
 // ─── HOME ─────────────────────────────────────────────────────────────────────
+const SPELL = ['zero','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve'];
+function spellNum(n) { return SPELL[n] ?? n; }
+
 async function loadHome() {
   const readingBooks    = books.filter(b => b.status === 'Reading');
   const waitlistedBooks = books.filter(b => b.status === 'Waitlisted');
@@ -359,9 +365,27 @@ async function loadHome() {
   const hour     = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const n        = readingBooks.length;
-  const heroMsg  = n === 0 ? 'Books don\'t read themselves. Allegedly.'
-                 : n === 1 ? 'Just the one. Suspicious.'
-                 :           `Juggling ${n} books. Very on-brand.`;
+  const pick     = arr => arr[Math.floor(Math.random() * arr.length)];
+  const heroMsg  = n === 0
+    ? pick([
+        'Books don\'t read themselves. Allegedly.',
+        'Your TBR pile is judging you.',
+        'No books in progress. Bold strategy.',
+        'The shelf awaits. Patiently. Resentfully.',
+      ])
+    : n === 1
+    ? pick([
+        'Just the one. Suspicious.',
+        'One book. Focused or indecisive? We\'ll never know.',
+        'Flying solo. Respect.',
+        'Single-book mode. Rare. Impressive.',
+      ])
+    : pick([
+        `Juggling ${spellNum(n)} books. Very on-brand.`,
+        `${spellNum(n)[0].toUpperCase() + spellNum(n).slice(1)} books in progress. Commitment can sometimes be complicated.`,
+        `${spellNum(n)[0].toUpperCase() + spellNum(n).slice(1)} books. You love a good plot twist — including in your reading list.`,
+        `${spellNum(n)[0].toUpperCase() + spellNum(n).slice(1)} books open. Make sure you're doing them both justice!`,
+      ]);
   document.getElementById('home-hero').innerHTML =
     `<p class="home-hero-greeting">${greeting}</p><p class="home-hero-message">${heroMsg}</p>`;
 
@@ -417,20 +441,39 @@ function renderStaleNudges(readingBooks) {
   const TEN_DAYS = 10 * 24 * 60 * 60 * 1000;
   const now      = Date.now();
   const stale    = readingBooks.filter(b => {
-    const lastEdit      = b.updatedAt  ? new Date(b.updatedAt).getTime()  : 0;
+    const lastEdit      = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
     const lastHighlight = highlights
       .filter(h => h.bookId === b.id && h.savedAt)
       .reduce((max, h) => Math.max(max, new Date(h.savedAt).getTime()), 0);
-    const lastActivity = Math.max(lastEdit, lastHighlight);
+    const lastActivity  = Math.max(lastEdit, lastHighlight);
     return lastActivity === 0 || (now - lastActivity) > TEN_DAYS;
   });
   if (stale.length === 0) return '';
-  return stale.map(b =>
-    `<div class="stale-nudge" onclick="this.remove()" title="Dismiss">
-      <span class="stale-nudge-text">📚 If <em>${b.title}</em> were a library book, you'd owe a fine by now!</span>
-      <span class="stale-nudge-dismiss">✕</span>
-    </div>`
-  ).join('');
+
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+  let message, arrowStyle = '';
+
+  if (stale.length === 1) {
+    const b   = stale[0];
+    const idx = readingBooks.indexOf(b);
+    const n   = readingBooks.length;
+    const pct = ((idx + 0.5) / n * 100).toFixed(1);
+    arrowStyle = `style="--arrow-left: calc(${pct}% - 6px)"`;
+    message = pick([
+      `📚 If <em>${b.title}</em> were a library book, you'd owe a fine by now!`,
+      `📚 Still reading <em>${b.title}</em>? No judgment. Actually, maybe a little bit.`,
+    ]);
+  } else {
+    message = pick([
+      '📚 Both books haven\'t heard from you in a while. They\'re starting to talk.',
+      '📚 Two books in progress, zero recent activity. The plot thickens — just not for you.',
+    ]);
+  }
+
+  return `<div class="stale-nudge${stale.length === 1 ? ' stale-nudge--arrow' : ''}" ${arrowStyle} onclick="this.remove()" title="Dismiss">
+    <span class="stale-nudge-text">${message}</span>
+    <span class="stale-nudge-dismiss">✕</span>
+  </div>`;
 }
 
 function renderDogEared(excludeId) {
@@ -462,9 +505,8 @@ function renderDogEared(excludeId) {
   const col    = book ? getCoverColor(book.category) : '#3a5a8c';
 
   container.innerHTML = heading + `
-    <div class="home-quote-card dog-eared-card" onclick="openHighlightDetail(${pick.id})" style="border-left-color:${col}">
-      <span class="home-quote-mark">&ldquo;</span>
-      <p class="home-quote-text">${pick.text}</p>
+    <div class="home-quote-card dog-eared-card" onclick="openHighlightDetail(${pick.id})" style="--card-accent:${col}">
+      <p class="home-quote-text">“${pick.text}”</p>
       <p class="home-quote-source">&mdash; ${book ? book.title : 'Unknown'}</p>
     </div>`;
 }
@@ -573,6 +615,7 @@ function openBook(id) {
         <p class="hl-quote-text">${h.text}</p>
         ${h.whyItStayed ? `<p class="hl-quote-why">${h.whyItStayed}</p>` : ''}
         ${h.date ? `<p class="hl-quote-date">${formatDate(h.date)}</p>` : ''}
+        <button onclick="showEditHighlightForm(${h.id}, event)" class="hl-edit" title="Edit">&#9998;</button>
         <button onclick="handleDeleteHighlight(${h.id}, event)" class="delete-btn hl-delete" title="Delete">&#128465;</button>
       </div>`).join('');
 
@@ -846,6 +889,7 @@ function loadHighlights() {
       ${h.whyItStayed ? `<p class="hl-quote-why">${h.whyItStayed}</p>` : ''}
       ${h.date ? `<p class="hl-quote-date">${formatDate(h.date)}</p>` : ''}
       ${h.location || h.kindleDate ? `<p class="hl-kindle-meta">${[h.location, h.kindleDate].filter(Boolean).join(' &middot; ')}</p>` : ''}
+      <button onclick="showEditHighlightForm(${h.id}, event)" class="hl-edit" title="Edit">&#9998;</button>
       <button onclick="handleDeleteHighlight(${h.id}, event)" class="delete-btn hl-delete" title="Delete">&#128465;</button>
     </div>`;
   }).join('');
@@ -855,10 +899,13 @@ function showAddHighlightForm() {
   document.getElementById('add-highlight-form').classList.remove('hidden');
   document.getElementById('add-highlight-form').style.display = 'flex';
   if (!currentBookId) {
-    const select = document.getElementById('highlight-book-select');
-    select.innerHTML = books.map(b => `<option value="${b.id}">${b.title}</option>`).join('');
+    document.getElementById('highlight-book-filter').value = '';
+    _populateBookSelect('');
+    _closeBookDropdown();
     document.getElementById('book-choice-section').style.display   = 'block';
-    document.getElementById('book-choice-existing').checked         = true;
+    document.querySelectorAll('#book-choice-section .radio-label').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.choice === 'existing');
+    });
     document.getElementById('existing-book-section').style.display = 'block';
     document.getElementById('new-book-section').style.display      = 'none';
   } else {
@@ -866,8 +913,52 @@ function showAddHighlightForm() {
   }
 }
 
-function toggleBookChoice() {
-  const choice = document.querySelector('input[name="bookChoice"]:checked').value;
+function _populateBookSelect(filter) {
+  const sorted   = [...books].sort((a, b) => a.title.localeCompare(b.title));
+  const filtered = filter
+    ? sorted.filter(b => b.title.split(/\s+/).some(word => word.toLowerCase().startsWith(filter.toLowerCase())))
+    : sorted;
+  // Update hidden select
+  const select = document.getElementById('highlight-book-select');
+  select.innerHTML = '<option value="" disabled selected></option>'
+    + filtered.map(b => `<option value="${b.id}">${b.title}</option>`).join('');
+  // Update visible dropdown list
+  const dropdown = document.getElementById('book-dropdown');
+  if (filtered.length === 0) {
+    dropdown.innerHTML = '<div class="book-dropdown-empty">No books found</div>';
+  } else {
+    dropdown.innerHTML = filtered.map(b =>
+      `<div class="book-dropdown-item" onclick="selectBookFromDropdown(${b.id}, '${b.title.replace(/'/g, "&#39;")}')">` +
+      `${b.title}</div>`
+    ).join('');
+  }
+}
+
+function filterBookSelect() {
+  const filter = document.getElementById('highlight-book-filter').value;
+  _populateBookSelect(filter);
+  document.getElementById('book-dropdown').classList.remove('hidden');
+}
+
+function openBookDropdown() {
+  _populateBookSelect(document.getElementById('highlight-book-filter').value);
+  document.getElementById('book-dropdown').classList.remove('hidden');
+}
+
+function _closeBookDropdown() {
+  document.getElementById('book-dropdown').classList.add('hidden');
+}
+
+function selectBookFromDropdown(id, title) {
+  document.getElementById('highlight-book-select').value = id;
+  document.getElementById('highlight-book-filter').value = title;
+  _closeBookDropdown();
+}
+
+function toggleBookChoice(choice) {
+  document.querySelectorAll('#book-choice-section .radio-label').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.choice === choice);
+  });
   document.getElementById('existing-book-section').style.display = choice === 'existing' ? 'block' : 'none';
   document.getElementById('new-book-section').style.display      = choice === 'new'      ? 'block' : 'none';
 }
@@ -880,7 +971,7 @@ async function addHighlight(event) {
   let bookId        = currentBookId;
   const fromTab     = !currentBookId;
   if (!bookId) {
-    const choice = document.querySelector('input[name="bookChoice"]:checked').value;
+    const choice = document.querySelector('#book-choice-section .radio-label.active').dataset.choice;
     if (choice === 'existing') {
       bookId = parseInt(document.getElementById('highlight-book-select').value);
     } else {
@@ -906,6 +997,33 @@ async function addHighlight(event) {
 function handleDeleteHighlight(id, e) {
   if (e) { e.preventDefault(); e.stopPropagation(); }
   if (confirm('Delete this highlight?')) deleteHighlightConfirmed(id);
+}
+
+function showEditHighlightForm(id, e) {
+  if (e) { e.preventDefault(); e.stopPropagation(); }
+  const h = highlights.find(h => h.id === id);
+  if (!h) return;
+  currentHighlightId = id;
+  document.getElementById('edit-highlight-text').value = h.text;
+  document.getElementById('edit-highlight-why').value  = h.whyItStayed || '';
+  document.getElementById('edit-highlight-date').value = h.date || '';
+  document.getElementById('edit-highlight-form').classList.remove('hidden');
+  document.getElementById('edit-highlight-form').style.display = 'flex';
+}
+
+async function updateHighlight(event) {
+  event.preventDefault();
+  const h = highlights.find(h => h.id === currentHighlightId);
+  if (!h) return;
+  h.text        = document.getElementById('edit-highlight-text').value;
+  h.whyItStayed = document.getElementById('edit-highlight-why').value;
+  h.date        = document.getElementById('edit-highlight-date').value;
+  await dbPut('highlights', h);
+  hideForm();
+  await saveAndSync();
+  const view = document.querySelector('.view:not(.hidden)');
+  if (view.id === 'highlights-view')       loadHighlights();
+  else if (view.id === 'book-detail-view') openBook(currentBookId);
 }
 
 async function deleteHighlightConfirmed(id) {
@@ -1050,10 +1168,10 @@ function setMediumBtn(groupSelector, value) {
 }
 
 const RATING_LABELS = {
-  forgot:    { icon: '\u{1F636}', label: 'Already forgot the plot' },
-  goodwhile: { icon: '\u{1F342}', label: 'It was good while it lasted' },
-  rentfree:  { icon: '\u{1F9E0}', label: 'Rent-free in my head' },
-  wrecked:   { icon: '\u{1F525}', label: 'Wrecked me (in a good way)' },
+  forgot:    { icon: '<i class="ph-bold ph-smiley-meh"></i>',  label: 'Already forgot the plot' },
+  goodwhile: { icon: '<i class="ph-bold ph-coffee"></i>',        label: 'It was good while it lasted' },
+  rentfree:  { icon: '<i class="ph-bold ph-brain"></i>',       label: 'Rent-free in my head' },
+  wrecked:   { icon: '<i class="ph-bold ph-fire"></i>',        label: 'Wrecked me (in a good way)' },
 };
 
 function setRatingBtn(groupSelector, value) {
@@ -1078,6 +1196,7 @@ function hideForm() {
     f.classList.add('hidden');
     f.style.display = 'none';
   });
+  _resetOcrSection();
 }
 
 function initializeForms() {
@@ -1401,6 +1520,7 @@ function initVoice() {
   let activeBtn         = null;
 
   document.querySelectorAll('.form input[type="text"], .form textarea').forEach(field => {
+    if (field.hasAttribute('data-no-voice')) return;
     // Wrap field in a relative container
     const wrapper = document.createElement('div');
     wrapper.className = 'voice-field';
@@ -1610,6 +1730,85 @@ function renderSprintArchived() {
   }).join('');
 }
 
+// ─── IMAGE OCR IMPORT ────────────────────────────────────────────────────────
+let _tesseractWorker = null;
+
+function importHighlightFromImage() {
+  document.getElementById('highlight-image-input').click();
+}
+
+async function handleHighlightImageFile(event) {
+  const file = event.target.files[0];
+  event.target.value = '';
+  if (!file) return;
+
+  // Open the Add Highlight form first
+  showAddHighlightForm();
+
+  // Show OCR section with image preview
+  const objectUrl = URL.createObjectURL(file);
+  const preview   = document.getElementById('ocr-preview');
+  preview.src     = objectUrl;
+  preview.onload  = () => URL.revokeObjectURL(objectUrl);
+
+  const ocrSection = document.getElementById('ocr-section');
+  ocrSection.style.display = 'block';
+  _setOcrProgress('Loading OCR engine… (first use may take ~10s)', 5);
+
+  try {
+    if (!_tesseractWorker) {
+      _tesseractWorker = await Tesseract.createWorker('eng', 1, {
+        logger: m => {
+          if (m.status === 'loading tesseract core') {
+            _setOcrProgress('Loading OCR engine…', 10);
+          } else if (m.status === 'initializing tesseract') {
+            _setOcrProgress('Initialising…', 30);
+          } else if (m.status === 'loading language traineddata') {
+            _setOcrProgress('Loading language data…', 50);
+          } else if (m.status === 'initializing api') {
+            _setOcrProgress('Initialising API…', 65);
+          } else if (m.status === 'recognizing text') {
+            const pct = Math.round(65 + (m.progress || 0) * 35);
+            _setOcrProgress('Extracting text…', pct);
+          }
+        }
+      });
+    } else {
+      _setOcrProgress('Extracting text…', 65);
+    }
+
+    const result = await _tesseractWorker.recognize(file);
+    const text   = result.data.text.trim();
+
+    document.getElementById('highlight-text-input').value = text;
+    _setOcrProgress('Done — review and edit the text below', 100);
+
+    // Collapse the OCR section after a short delay
+    setTimeout(() => {
+      ocrSection.style.display = 'none';
+    }, 1800);
+
+  } catch (err) {
+    console.error('OCR failed', err);
+    _setOcrProgress('OCR failed. Please type the text manually.', 0);
+  }
+}
+
+function _setOcrProgress(message, percent) {
+  const el  = document.getElementById('ocr-status-text');
+  const bar = document.getElementById('ocr-progress-bar-fill');
+  if (el)  el.textContent    = message;
+  if (bar) bar.style.width   = percent + '%';
+}
+
+function _resetOcrSection() {
+  const ocrSection = document.getElementById('ocr-section');
+  if (ocrSection) ocrSection.style.display = 'none';
+  const preview = document.getElementById('ocr-preview');
+  if (preview) preview.src = '';
+  _setOcrProgress('', 0);
+}
+
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
 async function boot() {
   await openDB();
@@ -1617,6 +1816,10 @@ async function boot() {
   initializeForms();
   initVoice();
   showView('home');
+  document.addEventListener('click', e => {
+    const combobox = document.getElementById('book-combobox');
+    if (combobox && !combobox.contains(e.target)) _closeBookDropdown();
+  });
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(console.error);
   }

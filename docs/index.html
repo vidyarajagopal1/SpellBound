@@ -11,6 +11,10 @@
   <meta name="apple-mobile-web-app-title" content="SpellBound">
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.0.3/src/bold/style.css">
 </head>
 <body>
   <header class="app-header">
@@ -94,8 +98,12 @@
             <option value="Philosophy">Philosophy</option>
             <option value="Graphic Novels">Graphic Novels</option>
           </select>
-          <button class="fab-inline" onclick="showAddHighlightForm()">+ Add</button>
-          <button class="kindle-import-btn" onclick="importKindleClippings()">&#128218; Import Highlights</button>
+        </div>
+        <div class="highlights-toolbar-actions">
+          <button class="hl-action-btn" onclick="showAddHighlightForm()">+ Add as text</button>
+          <button class="hl-action-btn" onclick="importHighlightFromImage()">&#128247; Add from image</button>
+          <input type="file" id="highlight-image-input" accept="image/*" style="display:none" onchange="handleHighlightImageFile(event)">
+          <button class="hl-action-btn" onclick="importKindleClippings()">&#128218; Kindle upload</button>
           <input type="file" id="kindle-file-input" accept=".json" style="display:none" onchange="handleKindleFile(event)">
         </div>
       </div>
@@ -273,21 +281,28 @@
     <!-- Add Highlight Form -->
     <div id="add-highlight-form" class="form hidden">
       <h3>Add Highlight</h3>
+      <div id="ocr-section" class="ocr-section" style="display:none;">
+        <img id="ocr-preview" class="ocr-preview" src="" alt="">
+        <div class="ocr-progress-wrap">
+          <div class="ocr-status-text" id="ocr-status-text">Loading OCR engine&hellip;</div>
+          <div class="ocr-progress-bar-track">
+            <div class="ocr-progress-bar-fill" id="ocr-progress-bar-fill"></div>
+          </div>
+        </div>
+      </div>
       <form onsubmit="addHighlight(event)">
         <div id="book-choice-section" style="display: none;">
           <div class="radio-group">
-            <label class="radio-label">
-              <input type="radio" id="book-choice-existing" name="bookChoice" value="existing" checked onchange="toggleBookChoice()">
-              <span>Select existing book</span>
-            </label>
-            <label class="radio-label">
-              <input type="radio" id="book-choice-new" name="bookChoice" value="new" onchange="toggleBookChoice()">
-              <span>Add new book</span>
-            </label>
+            <button type="button" class="radio-label active" data-choice="existing" onclick="toggleBookChoice('existing')">Select existing book</button>
+            <button type="button" class="radio-label" data-choice="new" onclick="toggleBookChoice('new')">Add new book</button>
           </div>
           <div id="existing-book-section">
-            <label for="highlight-book-select">Book</label>
-            <select id="highlight-book-select"></select>
+            <label>Book</label>
+            <div class="book-combobox" id="book-combobox">
+              <input type="text" id="highlight-book-filter" placeholder="Select a book…" oninput="filterBookSelect()" onclick="openBookDropdown()" autocomplete="off" data-no-voice>
+              <div id="book-dropdown" class="book-dropdown hidden"></div>
+            </div>
+            <select id="highlight-book-select" required style="display:none"></select>
           </div>
           <div id="new-book-section" style="display: none;">
             <label for="new-book-title">Book Title</label>
@@ -314,6 +329,21 @@
         <label for="highlight-date-input">Date</label>
         <input type="date" id="highlight-date-input">
         <button type="submit">Add</button>
+        <button type="button" onclick="hideForm()">Cancel</button>
+      </form>
+    </div>
+
+    <!-- Edit Highlight Form -->
+    <div id="edit-highlight-form" class="form hidden">
+      <h3>Edit Highlight</h3>
+      <form onsubmit="updateHighlight(event)">
+        <label for="edit-highlight-text">Highlight Text</label>
+        <textarea id="edit-highlight-text" required></textarea>
+        <label for="edit-highlight-why">Why it stayed</label>
+        <textarea id="edit-highlight-why" placeholder="Why it stayed"></textarea>
+        <label for="edit-highlight-date">Date</label>
+        <input type="date" id="edit-highlight-date">
+        <button type="submit">Save</button>
         <button type="button" onclick="hideForm()">Cancel</button>
       </form>
     </div>
@@ -420,32 +450,33 @@
 
   <nav class="bottom-nav">
     <button id="nav-home" class="nav-btn active" onclick="showView('home')">
-      <span class="nav-icon">&#127968;</span>
+      <i class="nav-icon ph-bold ph-house"></i>
       <span class="nav-label">Home</span>
     </button>
     <button id="nav-books" class="nav-btn" onclick="showView('books')">
-      <span class="nav-icon">&#128218;</span>
+      <i class="nav-icon ph-bold ph-books"></i>
       <span class="nav-label">Books</span>
     </button>
     <button id="nav-highlights" class="nav-btn" onclick="showView('highlights')">
-      <span class="nav-icon">&#10024;</span>
+      <i class="nav-icon ph-bold ph-sparkle"></i>
       <span class="nav-label">Highlights</span>
     </button>
     <button id="nav-essays" class="nav-btn" onclick="showView('essays')">
-      <span class="nav-icon">&#9997;</span>
+      <i class="nav-icon ph-bold ph-pencil-simple"></i>
       <span class="nav-label">Essays</span>
     </button>
     <button id="nav-wishlist" class="nav-btn" onclick="showView('wishlist')">
-      <span class="nav-icon">&#10084;</span>
+      <i class="nav-icon ph-bold ph-heart"></i>
       <span class="nav-label">Wishlist</span>
     </button>
     <button id="nav-sprint" class="nav-btn" onclick="showView('sprint')">
-      <span class="nav-icon">&#9889;</span>
+      <i class="nav-icon ph-bold ph-lightning"></i>
       <span class="nav-label">Sprint</span>
     </button>
   </nav>
 
   <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <script src="app.js"></script>
   <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
   <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>

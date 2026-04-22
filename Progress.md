@@ -184,6 +184,32 @@ SpellBound is a personal reading memory PWA. Pure static frontend (HTML/CSS/JS),
 | v27 | "Add to Books" button on wishlist rows made subtle (transparent bg, muted text) |
 | v28 | Essay sharing: added ✉ Gmail button + 🖨 Save as PDF button (was single Print button) |
 | v29–v32 | Gmail sharing iterations: URL approach failed (400 Bad Request, body too long); switched to Gmail API draft creation via `gmail.compose` OAuth scope |
+| v33–v44 | OCR image import (Tesseract.js v5); highlights toolbar restructured; edit highlight form + JS + CSS; book combobox with filter; toggle buttons for book choice; randomised home messages; stale nudge redesigned as full-width strip with triangle arrow |
+| v45 | Dog-eared card redesigned: inline smart quotes, Caveat handwriting font, cream notecard background, border-top accent, drop shadow, slight tilt with hover straighten |
+| v46 | Added notebook ruling lines to dog-eared card (later removed) |
+| v47 | Removed ruling lines from dog-eared card |
+| v48 | Dog-ear fold effect: CSS pseudo-element triangle on top-right corner |
+| v49 | Fixed border bleed into fold; added right padding to prevent text/fold overlap |
+| v50 | Nav tab active state: gold top-indicator line + icon scale; inactive tabs dimmed to 50% opacity |
+| v51 | Replaced emoji nav icons with Phosphor Icons Bold (`ph-house`, `ph-books`, `ph-sparkle`, `ph-pencil-simple`, `ph-heart`, `ph-lightning`); white inactive / gold active |
+| v52 | Active nav tab colour changed from gold to `--accent` red; inactive stayed white |
+| v53–v58 | Book cover colour palette iterations: tried desaturated jewel tones (A), deep saturated (B), pastel (C); settled on pastel palette: Fiction `#C47A90`, History `#C4A96A`, Politics `#6B9CB8`, Philosophy `#9B8AB8`, Graphic Novels `#78A882` |
+| v59 | Rating and medium icons on book covers: replaced drop-shadow with frosted dark pill background (`rgba(0,0,0,0.35)`) |
+| v60 | Increased book-cover-body bottom padding from 28px to 42px to clear pill badges |
+| v61 | Replaced emoji rating/medium icons with Phosphor Bold icons (white, CSS-colourable); `RATING_LABELS` and `MEDIUM_ICON` updated |
+| v62–v63 | "Good while it lasted" icon changed: leaf → wind → coffee |
+| v64 | Rating pill `left` offset increased from 8px to 18px to clear book spine |
+| v65 | `--accent2` changed from gold `#f5a623` to teal `#4ABFBF` |
+| v66 | Background palette changed from navy to deep forest: `--bg #141A16`, `--surface #1A2820`, `--surface2 #22382C` |
+| v67 | Hero gradient hardcoded navy values replaced with deep forest surface tones |
+| v68 | `--accent2` changed from teal to warm cream/ivory `#E8DFC8` |
+| v69 | Added Playfair Display font; applied to app title (`SpellBound`) |
+| v70 | Added Inter font as body font for all UI; Caveat kept for quote card only; quote attribution updated to use Inter |
+| v71 | Hero message lightened to match stale nudge: `0.8rem`, `font-weight: 400`, `var(--text-muted)` |
+| v72 | Quote card attribution (`— Book Title`) switched to Playfair Display italic |
+| v73 | Numbers in hero messages now spelled out (`spellNum()` helper, covers 0–12) |
+| v74 | Spelled numbers capitalised when sentence-initial |
+| v75 | "Commitment is complicated" → "Commitment can sometimes be complicated" |
 
 ---
 
