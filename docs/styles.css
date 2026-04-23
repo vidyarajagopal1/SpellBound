@@ -41,20 +41,24 @@ body {
 
 .app-title-group {
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
 }
 .app-logo {
-  height: 1.35rem;
+  height: 1.1rem;
   width: auto;
+  flex-shrink: 0;
   display: block;
 }
 .app-title {
   font-family: 'Playfair Display', serif;
-  font-size: 1.35rem;
+  font-size: 1.1rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   color: var(--accent2);
+  white-space: nowrap;
 }
 .sync-status {
   font-size: 0.7rem;
