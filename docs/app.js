@@ -2375,24 +2375,22 @@ function openFindNextRead() {
   document.getElementById('fnr-content').style.display   = 'block';
   document.getElementById('fnr-form-section').style.display    = 'block';
   document.getElementById('fnr-results-section').style.display = 'none';
-  document.getElementById('fnr-back-label').textContent = 'Wishlist';
+  document.getElementById('fnr-edit-prefs-btn').classList.add('hidden');
   _fnrRenderPills();
 }
 
 function fnrBack() {
-  const resultsVisible = document.getElementById('fnr-results-section').style.display !== 'none';
-  if (resultsVisible) {
-    // Results → Form (pre-filled)
-    document.getElementById('fnr-results-section').style.display = 'none';
-    document.getElementById('fnr-form-section').style.display    = 'block';
-    document.getElementById('fnr-back-label').textContent = 'Wishlist';
-    if (_fnrFormState) _fnrRestoreForm();
-  } else {
-    // Form → Wishlist
-    _fnrFormState = null;
-    document.getElementById('fnr-content').style.display   = 'none';
-    document.getElementById('wishlist-main').style.display = 'block';
-  }
+  // Results → Form (pre-filled)
+  document.getElementById('fnr-results-section').style.display = 'none';
+  document.getElementById('fnr-form-section').style.display    = 'block';
+  document.getElementById('fnr-edit-prefs-btn').classList.add('hidden');
+  if (_fnrFormState) _fnrRestoreForm();
+}
+
+function fnrBackToWishlist() {
+  _fnrFormState = null;
+  document.getElementById('fnr-content').style.display   = 'none';
+  document.getElementById('wishlist-main').style.display = 'block';
 }
 
 // ── Pills ─────────────────────────────────────────────────────────────────────
@@ -2663,7 +2661,7 @@ async function submitFindNextRead() {
   // Show loading
   document.getElementById('fnr-form-section').style.display    = 'none';
   document.getElementById('fnr-results-section').style.display = 'block';
-  document.getElementById('fnr-back-label').textContent = 'Edit preferences';
+  document.getElementById('fnr-edit-prefs-btn').classList.remove('hidden');
   document.getElementById('fnr-results-list').innerHTML = _fnrSkeletonHtml();
   document.getElementById('fnr-form-error').classList.add('hidden');
 
@@ -2672,7 +2670,7 @@ async function submitFindNextRead() {
     // Restore form with error
     document.getElementById('fnr-results-section').style.display = 'none';
     document.getElementById('fnr-form-section').style.display    = 'block';
-    document.getElementById('fnr-back-label').textContent = 'Wishlist';
+    document.getElementById('fnr-edit-prefs-btn').classList.add('hidden');
     const errEl = document.getElementById('fnr-form-error');
     errEl.textContent = 'No API key set — go to Settings to add one, then try again.';
     errEl.classList.remove('hidden');
@@ -2687,7 +2685,7 @@ async function submitFindNextRead() {
   } catch {
     document.getElementById('fnr-results-section').style.display = 'none';
     document.getElementById('fnr-form-section').style.display    = 'block';
-    document.getElementById('fnr-back-label').textContent = 'Wishlist';
+    document.getElementById('fnr-edit-prefs-btn').classList.add('hidden');
     const errEl = document.getElementById('fnr-form-error');
     errEl.textContent = 'Could not parse AI response. Please try again.';
     errEl.classList.remove('hidden');

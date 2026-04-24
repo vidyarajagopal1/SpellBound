@@ -2028,6 +2028,9 @@ main { min-height: 100%; }
 /* Header */
 .fnr-header {
   margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 .fnr-back-btn {
   background: none;
