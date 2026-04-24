@@ -644,7 +644,7 @@ function loadBooks() {
     });
 
     const subgroupsHtml = cats.map(cat => {
-      const catBooks  = group.filter(b => b.category === cat);
+      const catBooks  = group.filter(b => b.category === cat).sort((a, b) => (a.title || '').localeCompare(b.title || ''));
       const color     = getCoverColor(cat);
       const sgId      = `sg-${status}-${cat}`.replace(/[\s\/]+/g, '-').toLowerCase();
       const rowsHtml  = catBooks.map(b => {

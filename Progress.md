@@ -502,3 +502,4 @@ Replace calls pass currently-displayed titles to avoid near-duplicates.
 | v88 | Highlights search bar; Books tab row layout + sub-grouping; font and style polish |
 | v89 | Books tab UX refinements: category pill stacking, heading cleanup, font consistency |
 | v90 | Find Your Next Read AI feature; Wishlist two-zone layout; Books tab elevated redesign; Essay tab typography alignment |
+| v91 | Books tab: titles sorted alphabetically within each category sub-group (`localeCompare`) |
