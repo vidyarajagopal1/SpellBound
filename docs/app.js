@@ -2337,8 +2337,6 @@ async function aiTags(draftText, thread, instruction, feedbackEl) {
   return callAIWithFeedback(AI_PROMPTS.tags, thread, userMsg, feedbackEl);
 }
 
-}
-
 // ─── FIND YOUR NEXT READ ──────────────────────────────────────────────────────
 
 const FNR_GENRES = [
