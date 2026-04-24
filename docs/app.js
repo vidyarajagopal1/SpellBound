@@ -621,8 +621,7 @@ function setStatusFilter(value) {
 function loadBooks() {
   const query          = (document.getElementById('books-search')?.value || '').trim().toLowerCase();
   const statusFilter   = document.getElementById('books-status-filter').value;
-  const categoryFilter = document.getElementById('books-category-filter').value;
-  const STATUS_ORDER   = ['Reading', 'Waitlisted', 'Paused', 'Completed'];
+  const STATUS_ORDER   = ['Reading', 'Completed', 'Paused', 'Waitlisted'];
   const CATEGORY_ORDER = ['Fiction', 'History', 'Politics', 'Philosophy', 'Graphic Novels'];
 
   let filtered = books;
@@ -637,7 +636,6 @@ function loadBooks() {
   STATUS_ORDER.forEach(status => {
     if (statusFilter && status !== statusFilter) return;
     let group = filtered.filter(b => b.status === status);
-    if (categoryFilter) group = group.filter(b => b.category === categoryFilter);
     if (group.length === 0) return;
 
     const cats = [...new Set(group.map(b => b.category))].sort((a, b) => {
@@ -649,20 +647,21 @@ function loadBooks() {
       const catBooks  = group.filter(b => b.category === cat);
       const color     = getCoverColor(cat);
       const sgId      = `sg-${status}-${cat}`.replace(/[\s\/]+/g, '-').toLowerCase();
-      const rowsHtml  = catBooks.map(b => `
-        <div class="book-row" onclick="openBook(${b.id})" style="border-left:4px solid ${color};background:${hexToRgba(color, 0.12)}">
+      const rowsHtml  = catBooks.map(b => {
+        const rating = b.rating && RATING_LABELS[b.rating] ? RATING_LABELS[b.rating] : null;
+        const medium = getMediumIcon(b.medium);
+        return `
+        <div class="book-row" onclick="openBook(${b.id})" style="border-left:6px solid ${color};background:${hexToRgba(color, 0.07)}">
           <div class="book-row-main">
             <span class="book-row-title">${b.title}</span>
-            ${b.author ? `<span class="book-row-author">${b.author}</span>` : ''}
-          </div>
-          <div class="book-row-badges">
-            <span class="book-row-cat-pill" style="background:${color}">${cat}</span>
-            <div class="book-row-icons">
-              ${b.rating && RATING_LABELS[b.rating] ? `<span class="book-row-badge">${RATING_LABELS[b.rating].icon}</span>` : ''}
-              ${getMediumIcon(b.medium) ? `<span class="book-row-badge">${getMediumIcon(b.medium)}</span>` : ''}
+            <div class="book-row-meta">
+              ${b.author ? `<span class="book-row-author">${b.author}</span>` : ''}
+              ${medium ? `<span class="book-row-medium-icon">${medium}</span>` : ''}
             </div>
           </div>
-        </div>`).join('');
+          ${rating ? `<div class="book-row-right" style="color:${rating.color}">${rating.icon} <span class="book-row-rating-text">${rating.short}</span></div>` : ''}
+        </div>`;
+      }).join('');
       return `
         <div class="book-subgroup">
           <div class="book-subgroup-heading" onclick="toggleBookSubgroup('${sgId}')">
@@ -1429,10 +1428,10 @@ function setMediumBtn(groupSelector, value) {
 }
 
 const RATING_LABELS = {
-  forgot:    { icon: '<i class="ph-bold ph-smiley-meh"></i>',  label: 'Already forgot the plot' },
-  goodwhile: { icon: '<i class="ph-bold ph-coffee"></i>',        label: 'It was good while it lasted' },
-  rentfree:  { icon: '<i class="ph-bold ph-brain"></i>',       label: 'Rent-free in my head' },
-  wrecked:   { icon: '<i class="ph-bold ph-fire"></i>',        label: 'Wrecked me (in a good way)' },
+  forgot:    { icon: '<i class="ph-bold ph-smiley-meh"></i>',  label: 'Already forgot the plot',     short: 'Forgot the plot',       color: '#8ab0c5' },
+  goodwhile: { icon: '<i class="ph-bold ph-coffee"></i>',        label: 'It was good while it lasted', short: 'Good while it lasted',  color: '#c9a97a' },
+  rentfree:  { icon: '<i class="ph-bold ph-brain"></i>',         label: 'Rent-free in my head',        short: 'Rent-free',             color: '#b09ad8' },
+  wrecked:   { icon: '<i class="ph-bold ph-fire"></i>',          label: 'Wrecked me (in a good way)',  short: 'Wrecked me',            color: '#c47a85' },
 };
 
 function setRatingBtn(groupSelector, value) {

@@ -406,3 +406,99 @@ A full end-to-end multi-step flow for building essays from reading highlights, p
 ### Book detail view font (v88–v89)
 - `.book-detail-title` switched to Playfair Display, `1.2rem`, weight 700, `line-height: 1.25`
 - Meta card value text (Date Completed, Aftertaste, Favourite Character) reduced to `0.8rem` via `.book-meta-item span:not(.book-meta-label)`
+
+---
+
+## Find Your Next Read (v90)
+
+An AI-powered book recommendation feature inside the Wishlist tab. Takes user mood, reference books/authors, and reading context as input, then returns 5 personalised book recommendations with the option to replace individual results or add them directly to the Wishlist.
+
+### Wishlist Tab UI Redesign (v90)
+- Replaced flat toolbar (two equal red buttons) with a **two-zone layout**:
+  - **Zone 1 — FNR card**: tappable surface card at the top with wand icon, `Find Your Next Read` title in accent red, and tagline *"Somewhere out there is your next great read. Let's go find it."* + `→` arrow
+  - **Zone 2 — Wishlist section**: titled card `YOUR WISHLIST` with a small red `+` button on the right; list items render as flat rows inside the card, separated by subtle dividers (no nested cards)
+- Empty state updated to: *"Nothing here yet. Add a book manually or use Find Your Next Read above."*
+
+### FNR Form (v90)
+Six prompts, all visible at once:
+1. **Genre mood** — up to 3 selectable pills (11 options + "Something else →" reveals text input)
+2. **Topic/mood** — freetext textarea
+3. **Reference book** — autocomplete via Google Books `intitle:` API; optional "what stayed with you?" textarea
+4. **Reference author** — autocomplete via Google Books `inauthor:` API; optional "what about their writing?" textarea
+5. **Reading context** — up to 2 selectable pills (7 options)
+6. **Avoid** — freetext textarea
+
+**Form design:**
+- `✦` ornament above title; Playfair Display italic 2rem in amber `#e8c97e`
+- Intro line: *"The best part of reading is knowing there's another book waiting. Let's find yours."*
+- 2.5rem gap between prompts; 0.95rem bold Inter prompt labels
+- Pills: 24px border-radius, 10px gap; active = `--accent` red with 3px glow ring
+- Inputs: warm border `rgba(220,185,120,0.14)`, focus → accent red
+- Submit button: `Find my next read →`, 1rem bold, 16px padding, 12px border-radius
+
+### FNR Navigation (v90)
+- **Header** shows two buttons side by side: `← Back to Wishlist` (always) + `⊟ Edit Preferences` (shown only on results screen)
+- `openFindNextRead()` — hides wishlist-main, shows blank form, hides Edit Preferences
+- `fnrBack()` — results → pre-filled form (restores `_fnrFormState`), hides Edit Preferences
+- `fnrBackToWishlist()` — exits FNR entirely, clears `_fnrFormState`
+
+### User Context (v90)
+`_fnrBuildUserContext()` reads from IndexedDB to build a signal object passed to the AI:
+- `topRatedBooks`: all books rated `rentfree` or `wrecked`, up to 30. Top 10 by highlight count each contribute up to 3 `whyItStayed` entries (highlight texts) as rich signal.
+- `pausedBooks`: negative signal — books the user started but didn't finish
+- `medium`: counts of kindle / audiobook / physical across all books
+- `densityTop5`: top 5 books by highlight count regardless of rating
+
+### AI Prompt (v90)
+`AI_PROMPTS.findNextRead` — 8-step algorithm instructing the AI to:
+1. Study user context signals
+2. Parse form input
+3. Avoid books already in the user's library
+4. Generate 5 diverse candidates
+5. Score and rank them
+6. Return strict JSON: `{ recommendations: [{ title, author, description, why_it_fits, tags[], effort }] }`
+
+Replace calls pass currently-displayed titles to avoid near-duplicates.
+
+### FNR Results (v90)
+- 5 skeleton cards shown during AI call (pulsing animation)
+- Each result card: title (Playfair Display bold), author italic, description, pink left-border `why_it_fits` blockquote, tag pills, effort badge (Easy/Medium/Dense), Google Books link, `↺ Replace` + `♡ Add to Wishlist` buttons
+- Replace: targeted single-slot AI call with `avoid` array of current titles
+- Add to Wishlist: silent save to wishlist store, button changes to `✓ Added` (disabled)
+
+---
+
+## Books Tab Elevated Redesign (v90)
+
+### Toolbar
+- **Category dropdown removed** — redundant since books are already grouped by category
+- `+ Add Book` button moved to the search bar row (right of search input), eliminating the second toolbar row
+
+### Status Section Headings
+- All four headings unified: **Playfair Display italic**, 1.25rem, weight 400
+- Single accent color for all: `#9c6fda` (the Waitlisted purple)
+- No borders, no ornaments — differentiation through color alone, generous spacing (`margin-bottom: 1.25rem`, group spacing `2.5rem`)
+
+### Book Row Redesign
+- **Title**: Inter 500, 0.95rem, `letter-spacing: -0.01em` — sharper and narrower
+- **Author + medium icon** on meta row (line 2) — author italic muted, medium icon at 30% opacity beside it
+- **Rating** moved to right column: icon + short text label, each in its pastel accent color
+  - 😐 *Forgot the plot* → `#8ab0c5` (muted slate blue)
+  - ☕ *Good while it lasted* → `#c9a97a` (dusty amber)
+  - 🧠 *Rent-free* → `#b09ad8` (soft lavender)
+  - 🔥 *Wrecked me* → `#c47a85` (dusty rose)
+- **Category pill removed** from rows — still visible in book detail view
+- **Spine**: 6px solid category color; background: 7% opacity tint of same color
+- **Status order**: Reading → Completed → Paused → Waitlisted
+
+### Essay Tab Typography Alignment
+- Essay card titles: Inter 500, 0.95rem, `letter-spacing: -0.01em` (matches book row titles)
+- Essay card subtitles: 0.7rem italic muted (matches book row author style)
+
+---
+
+| Version | Changes |
+|---|---|
+| v88 | Highlights search bar; Books tab row layout + sub-grouping; font and style polish |
+| v89 | Books tab UX refinements: category pill stacking, heading cleanup, font consistency |
+| v90 | Find Your Next Read AI feature; Wishlist two-zone layout; Books tab elevated redesign; Essay tab typography alignment |

@@ -48,7 +48,10 @@
     <!-- Books List View -->
     <div id="books-view" class="view hidden">
       <div class="books-toolbar">
-        <input type="search" id="books-search" placeholder="Search by title or author…" oninput="loadBooks()" autocomplete="off">
+        <div class="books-toolbar-top">
+          <input type="search" id="books-search" placeholder="Search by title or author…" oninput="loadBooks()" autocomplete="off">
+          <button class="fab-inline" onclick="showAddBookForm()">+ Add Book</button>
+        </div>
         <div class="status-pills">
           <button class="status-pill active" onclick="setStatusFilter('')">All</button>
           <button class="status-pill" onclick="setStatusFilter('Reading')">Reading</button>
@@ -63,17 +66,6 @@
           <option value="Paused">Paused</option>
           <option value="Waitlisted">Waitlisted</option>
         </select>
-        <div class="books-toolbar-row">
-          <select id="books-category-filter" onchange="loadBooks()">
-            <option value="">All Categories</option>
-            <option value="Fiction">Fiction</option>
-            <option value="History">History</option>
-            <option value="Politics">Politics</option>
-            <option value="Philosophy">Philosophy</option>
-            <option value="Graphic Novels">Graphic Novels</option>
-          </select>
-          <button class="fab-inline" onclick="showAddBookForm()">+ Add Book</button>
-        </div>
       </div>
       <div id="books-list"></div>
     </div>
@@ -171,7 +163,7 @@
         <div class="fnr-zone-card" onclick="openFindNextRead()">
           <div class="fnr-zone-text">
             <span class="fnr-zone-title"><i class="ph-bold ph-magic-wand"></i> Find Your Next Read</span>
-            <span class="fnr-zone-sub">Tell us what you're in the mood for — we'll suggest what to read next.</span>
+            <span class="fnr-zone-sub">Somewhere out there is your next great read. Let's go find it.</span>
           </div>
           <i class="ph-bold ph-arrow-right fnr-zone-arrow"></i>
         </div>
@@ -195,9 +187,8 @@
         </div>
 
         <!-- Form section -->
-        <div id="fnr-form-section">
-          <h2 class="fnr-title">Find Your Next Read</h2>
-          <p class="fnr-intro">Let's find what you're in the mood for.</p>
+        <div id="fnr-form-section">          <p class="fnr-ornament">✦</p>          <h2 class="fnr-title">Find Your Next Read</h2>
+          <p class="fnr-intro">The best part of reading is knowing there's another book waiting. Let's find yours.</p>
 
           <!-- Prompt 1: Genre mood -->
           <div class="fnr-prompt">
@@ -258,7 +249,7 @@
           </div>
 
           <div id="fnr-form-error" class="fnr-error hidden"></div>
-          <button class="fnr-submit-btn" onclick="submitFindNextRead()">Find Your Next Read</button>
+          <button class="fnr-submit-btn" onclick="submitFindNextRead()">Find my next read →</button>
         </div>
 
         <!-- Results section -->
