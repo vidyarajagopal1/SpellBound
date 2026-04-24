@@ -488,6 +488,119 @@ main { min-height: 100%; }
   font-size: 0.7rem;
 }
 
+/* ─── BOOKS SEARCH ──────────────────────────────────────────────────────────── */
+#books-search {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 9px 10px;
+  font-size: 0.82rem;
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+  outline: none;
+}
+#books-search::placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+}
+#books-search:focus {
+  border-color: var(--accent);
+}
+
+/* ─── BOOK ROWS ─────────────────────────────────────────────────────────────── */
+.book-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  margin-bottom: 6px;
+  transition: opacity 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.book-row:active { opacity: 0.75; }
+.book-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.book-row-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.book-row-author {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.book-row-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.book-row-icons {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.book-row-cat-pill {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #fff;
+  border-radius: 20px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+.book-row-badge {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* ─── BOOK SUB-GROUPS ───────────────────────────────────────────────────────── */
+.book-subgroup {
+  margin-bottom: 0.75rem;
+}
+.book-subgroup-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.65rem;
+  text-transform: none;
+  letter-spacing: 0;
+  color: rgba(255,255,255,0.2);
+  cursor: pointer;
+  padding: 4px 0 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  margin-bottom: 6px;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.book-subgroup-toggle {
+  margin-left: auto;
+  transition: transform 0.2s;
+}
+.book-subgroup-toggle.rotated {
+  transform: rotate(-90deg);
+}
+.book-subgroup-list.collapsed {
+  display: none;
+}
+
 /* ─── BOOK DETAIL ───────────────────────────────────────────────────────────── */
 .book-detail-actions {
   margin-bottom: 1rem;
@@ -515,7 +628,7 @@ main { min-height: 100%; }
   align-items: flex-start;
   gap: 1rem;
 }
-.book-detail-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 4px; }
+.book-detail-title { font-family: 'Playfair Display', serif; font-size: 1.2rem; font-weight: 700; margin-bottom: 4px; line-height: 1.25; }
 .book-detail-author { font-size: 0.82rem; color: var(--text-muted); margin-bottom: 8px; font-style: italic; }
 .book-detail-pills { display: flex; gap: 6px; flex-wrap: wrap; }
 .book-pill {
@@ -552,6 +665,7 @@ main { min-height: 100%; }
   margin-bottom: 1rem;
 }
 .book-meta-item { background: var(--surface); border-radius: var(--radius); padding: 10px 12px; }
+.book-meta-item span:not(.book-meta-label) { font-size: 0.8rem; line-height: 1.4; }
 .book-meta-label { display: block; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 4px; }
 .book-highlights-heading { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin: 1rem 0 0.75rem; }
 
@@ -564,7 +678,7 @@ main { min-height: 100%; }
   gap: 8px;
   align-items: center;
 }
-.highlights-toolbar select {
+#highlight-search {
   flex: 1;
   background: var(--surface);
   color: var(--text);
@@ -572,8 +686,15 @@ main { min-height: 100%; }
   border-radius: 8px;
   padding: 9px 10px;
   font-size: 0.82rem;
-  font-weight: 500;
-  cursor: pointer;
+  font-family: inherit;
+  outline: none;
+}
+#highlight-search::placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+}
+#highlight-search:focus {
+  border-color: var(--accent);
 }
 .hl-add-wrap {
   position: relative;

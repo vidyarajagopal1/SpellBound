@@ -314,6 +314,13 @@ const COVER_COLORS = {
 };
 function getCoverColor(cat) { return COVER_COLORS[cat] || '#7A8FA6'; }
 
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1,3), 16);
+  const g = parseInt(hex.slice(3,5), 16);
+  const b = parseInt(hex.slice(5,7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 const MEDIUM_ICON = {
   kindle:    '<i class="ph-bold ph-device-mobile"></i>',
   audiobook: '<i class="ph-bold ph-headphones"></i>'
@@ -612,34 +619,76 @@ function setStatusFilter(value) {
 }
 
 function loadBooks() {
-  const STATUS_ORDER   = ['Reading', 'Waitlisted', 'Paused', 'Completed'];
+  const query          = (document.getElementById('books-search')?.value || '').trim().toLowerCase();
   const statusFilter   = document.getElementById('books-status-filter').value;
   const categoryFilter = document.getElementById('books-category-filter').value;
+  const STATUS_ORDER   = ['Reading', 'Waitlisted', 'Paused', 'Completed'];
+  const CATEGORY_ORDER = ['Fiction', 'History', 'Politics', 'Philosophy', 'Graphic Novels'];
+
+  let filtered = books;
+  if (query) {
+    filtered = filtered.filter(b =>
+      (b.title  || '').toLowerCase().includes(query) ||
+      (b.author || '').toLowerCase().includes(query)
+    );
+  }
+
   let html = '';
   STATUS_ORDER.forEach(status => {
     if (statusFilter && status !== statusFilter) return;
-    let group = books.filter(b => b.status === status);
+    let group = filtered.filter(b => b.status === status);
     if (categoryFilter) group = group.filter(b => b.category === categoryFilter);
     if (group.length === 0) return;
+
+    const cats = [...new Set(group.map(b => b.category))].sort((a, b) => {
+      const ia = CATEGORY_ORDER.indexOf(a), ib = CATEGORY_ORDER.indexOf(b);
+      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+    });
+
+    const subgroupsHtml = cats.map(cat => {
+      const catBooks  = group.filter(b => b.category === cat);
+      const color     = getCoverColor(cat);
+      const sgId      = `sg-${status}-${cat}`.replace(/[\s\/]+/g, '-').toLowerCase();
+      const rowsHtml  = catBooks.map(b => `
+        <div class="book-row" onclick="openBook(${b.id})" style="border-left:4px solid ${color};background:${hexToRgba(color, 0.12)}">
+          <div class="book-row-main">
+            <span class="book-row-title">${b.title}</span>
+            ${b.author ? `<span class="book-row-author">${b.author}</span>` : ''}
+          </div>
+          <div class="book-row-badges">
+            <span class="book-row-cat-pill" style="background:${color}">${cat}</span>
+            <div class="book-row-icons">
+              ${b.rating && RATING_LABELS[b.rating] ? `<span class="book-row-badge">${RATING_LABELS[b.rating].icon}</span>` : ''}
+              ${getMediumIcon(b.medium) ? `<span class="book-row-badge">${getMediumIcon(b.medium)}</span>` : ''}
+            </div>
+          </div>
+        </div>`).join('');
+      return `
+        <div class="book-subgroup">
+          <div class="book-subgroup-heading" onclick="toggleBookSubgroup('${sgId}')">
+            <span>${cat}</span>
+            <span class="books-group-count">${catBooks.length}</span>
+            <i class="ph-bold ph-caret-down book-subgroup-toggle" id="toggle-${sgId}"></i>
+          </div>
+          <div class="book-subgroup-list" id="${sgId}">${rowsHtml}</div>
+        </div>`;
+    }).join('');
+
     html += `
       <div class="books-group">
-        <h2 class="books-group-heading accent-${status.toLowerCase().replace(' ','-')}">${status}<span class="books-group-count">${group.length}</span></h2>
-        <div class="home-covers">
-          ${group.map(b => `
-            <div class="book-cover" onclick="openBook(${b.id})" style="background-color:${getCoverColor(b.category)}">
-              <div class="book-cover-spine"></div>
-              <div class="book-cover-body">
-                <h3 class="book-cover-title">${b.title}</h3>
-                <p class="book-cover-category">${b.category}</p>
-              </div>
-              ${getMediumIcon(b.medium) ? `<span class="book-cover-medium">${getMediumIcon(b.medium)}</span>` : ''}
-              ${b.rating && RATING_LABELS[b.rating] ? `<span class="book-cover-rating">${RATING_LABELS[b.rating].icon}</span>` : ''}
-              <button onclick="handleDeleteBook(${b.id}, event)" class="delete-btn book-cover-delete" title="Delete">&#128465;</button>
-            </div>`).join('')}
-        </div>
+        <h2 class="books-group-heading accent-${status.toLowerCase().replace(' ','-')}">${status}</h2>
+        ${subgroupsHtml}
       </div>`;
   });
   document.getElementById('books-list').innerHTML = html || '<p class="home-empty">No books match the selected filters.</p>';
+}
+
+function toggleBookSubgroup(id) {
+  const list   = document.getElementById(id);
+  const toggle = document.getElementById('toggle-' + id);
+  if (!list) return;
+  list.classList.toggle('collapsed');
+  if (toggle) toggle.classList.toggle('rotated');
 }
 
 function openBook(id) {
@@ -938,11 +987,15 @@ async function deleteBookConfirmed(id) {
 
 // ─── HIGHLIGHTS ───────────────────────────────────────────────────────────────
 function loadHighlights() {
-  const categoryFilter = document.getElementById('highlight-category-filter').value;
+  const query = (document.getElementById('highlight-search').value || '').trim().toLowerCase();
   let filtered = highlights;
-  if (categoryFilter) {
-    const ids = books.filter(b => b.category === categoryFilter).map(b => b.id);
-    filtered  = filtered.filter(h => ids.includes(h.bookId));
+  if (query) {
+    filtered = filtered.filter(h => {
+      const book = books.find(b => b.id === h.bookId);
+      return (h.text  || '').toLowerCase().includes(query)
+          || (book && (book.title  || '').toLowerCase().includes(query))
+          || (book && (book.author || '').toLowerCase().includes(query));
+    });
   }
   const container = document.getElementById('all-highlights');
   if (filtered.length === 0) { container.innerHTML = '<p class="home-empty">No highlights yet.</p>'; return; }

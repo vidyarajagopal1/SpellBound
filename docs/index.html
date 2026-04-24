@@ -14,7 +14,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="styles.css?v=87">
+  <link rel="stylesheet" href="styles.css?v=89">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
@@ -48,6 +48,7 @@
     <!-- Books List View -->
     <div id="books-view" class="view hidden">
       <div class="books-toolbar">
+        <input type="search" id="books-search" placeholder="Search by title or author…" oninput="loadBooks()" autocomplete="off">
         <div class="status-pills">
           <button class="status-pill active" onclick="setStatusFilter('')">All</button>
           <button class="status-pill" onclick="setStatusFilter('Reading')">Reading</button>
@@ -101,14 +102,7 @@
     <div id="highlights-view" class="view hidden">
       <div class="highlights-toolbar">
         <div class="highlights-toolbar-row">
-          <select id="highlight-category-filter" onchange="loadHighlights()">
-            <option value="">All Categories</option>
-            <option value="Fiction">Fiction</option>
-            <option value="History">History</option>
-            <option value="Politics">Politics</option>
-            <option value="Philosophy">Philosophy</option>
-            <option value="Graphic Novels">Graphic Novels</option>
-          </select>
+          <input type="search" id="highlight-search" placeholder="Search by keyword, book, or author…" oninput="loadHighlights()" autocomplete="off">
           <div class="hl-add-wrap">
             <button class="hl-add-btn" onclick="toggleHlAddMenu(event)">+ Add Highlight <i class="ph-bold ph-caret-down"></i></button>
             <div id="hl-add-menu" class="hl-add-menu hidden">

@@ -356,3 +356,53 @@ A full end-to-end multi-step flow for building essays from reading highlights, p
 | v85 | Tag bar scroll fade hint (`::after` gradient + JS scroll listener) |
 | v86 | Buttons corrected to solid `--accent` red |
 | v87 | Spacing pass: toolbar, tag row, section header, card gap |
+| v88 | Highlights search bar; Books tab row layout + sub-grouping; font and style polish |
+| v89 | Books tab UX refinements: category pill stacking, heading cleanup, font consistency |
+
+---
+
+## Highlights Search (v88)
+
+- **Category dropdown removed** from Highlights toolbar entirely
+- **Single search bar** added: `<input type="search" id="highlight-search" placeholder="Search by keyword, book, or author…">`
+- Live-filters as you type — a highlight passes if the query matches (case-insensitive, partial):
+  - highlight text
+  - book title
+  - author name
+- Empty query shows all highlights
+
+---
+
+## Books Tab Overhaul (v88–v89)
+
+### Row layout (v88)
+- Replaced the 3-column `home-covers` grid with full-width **horizontal rows** (`book-row`)
+- Each row: 4px left border (category colour, full saturation) + category colour at 12% opacity as background tint
+- Left side: book title (`0.85rem`, weight 600, Inter — matching Home waitlist) + author below in `0.65rem` italic muted
+- Right side: category pill (filled, full colour, white text) stacked above a row of rating + medium icon badges
+- **Delete button removed** from list view entirely — only accessible from the book detail view
+- `hexToRgba(hex, alpha)` helper added next to `getCoverColor`
+- Existing `.home-covers` / `.book-cover` CSS left untouched — still used by Home "Currently Reading" shelf
+
+### Category sub-grouping (v88)
+- Within each status group, books are **sub-grouped by category** in `CATEGORY_ORDER` sequence
+- Sub-group headings: collapsible (expanded by default), toggled by `toggleBookSubgroup(id)`
+- Caret icon rotates 90° when collapsed (`.rotated` class on `.book-subgroup-toggle`)
+- `toggleBookSubgroup(id)` toggles `.collapsed` on the list div
+
+### Search bar (v88)
+- `<input type="search" id="books-search" placeholder="Search by title or author…">` added above status pills
+- `loadBooks()` reads query and filters by title + author before grouping
+- Category dropdown retained alongside `+ Add Book` in the second toolbar row
+
+### Status heading cleanup (v89)
+- **Count badge removed** from status headings — number no longer displayed next to "READING", "COMPLETED" etc.
+
+### Category sub-group heading style (v89)
+- Heading made much quieter: lowercase, no uppercase/letter-spacing, `rgba(255,255,255,0.2)` colour
+- Faint `1px solid rgba(255,255,255,0.06)` divider line beneath each heading
+- Count badge retained on category headings only (small, muted)
+
+### Book detail view font (v88–v89)
+- `.book-detail-title` switched to Playfair Display, `1.2rem`, weight 700, `line-height: 1.25`
+- Meta card value text (Date Completed, Aftertaste, Favourite Character) reduced to `0.8rem` via `.book-meta-item span:not(.book-meta-label)`
