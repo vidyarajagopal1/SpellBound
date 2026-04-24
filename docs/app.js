@@ -2235,7 +2235,50 @@ Generate exactly 8 tags for the essay.
 - Tags should be specific and meaningful — avoid generic words like "essay", "writing", "ideas".
 - Mix conceptual tags (themes, ideas) with topical tags (subjects, domains).
 - Use lowercase, 1–3 words each.
-- Return only the 8 tags as a comma-separated list on a single line — no other text.`
+- Return only the 8 tags as a comma-separated list on a single line — no other text.`,
+
+  findNextRead: `You are a literary recommendation engine for a personal reading app called SpellBound.
+Your task: return exactly 5 book recommendations based on the user's current mood, preferences, and reading history.
+
+CRITICAL RULES:
+1. Return ONLY valid JSON — no prose, no preamble, no markdown code fences, no commentary outside the JSON.
+2. Return exactly 5 recommendations in the "recommendations" array.
+3. Do not recommend books already listed in the user's reading history.
+4. Keep variety: do not return near-identical books or more than 2 books by the same author (unless an author is explicitly requested).
+5. Each "why_it_fits" must reference at least one specific signal from the user's input or reading history. Do not use generic statements.
+
+RECOMMENDATION ALGORITHM:
+Step 1 — Build candidate pool from genres, custom_genre, topic_text, and user history.
+Step 2 — Expand with books similar to book_title (if given); books by/similar to author_name (if given); books matching topic themes.
+Step 3 — Remove books matching anything in avoid_text (themes, tone, style, length).
+Step 4 — Score each book:
+  +3 similar to book_title
+  +3 by author_name or similar author
+  +2 matches topic_text
+  +2 matches any genres
+  +1 matches reading_context
+  +1 similar to user history
+  +1 matches tone/style from book_notes or author_notes
+Step 5 — Rank by score.
+Step 6 — Select: top 2 highest scoring; next 2 ensuring variety from top 15; last 1 slightly different from top 30.
+Step 7 — Author rule: max 2 books by requested author; otherwise prefer different authors.
+
+RESPONSE FORMAT — return this exact JSON structure:
+{
+  "recommendations": [
+    {
+      "title": "Book title",
+      "author": "Author full name",
+      "description": "One sentence — what the book is actually about",
+      "why_it_fits": "1–2 sentences referencing the user's specific input or history. Be specific.",
+      "reading_feel": ["tag1", "tag2", "tag3"],
+      "effort_level": "Easy"
+    }
+  ]
+}
+reading_feel: 2–3 short descriptive tags (e.g. "character-driven", "lyrical prose", "slow burn", "page-turner", "dark humour", "quietly devastating").
+effort_level: exactly one of "Easy", "Moderate", or "Dense".`
+
 };
 
 // ─── AI TYPED CALL FUNCTIONS ──────────────────────────────────────────────────
@@ -2292,6 +2335,493 @@ async function aiTags(draftText, thread, instruction, feedbackEl) {
   const base = `Here is my essay:\n\n${draftText}`;
   const userMsg = instruction ? `${base}\n\nInstruction: ${instruction}` : base;
   return callAIWithFeedback(AI_PROMPTS.tags, thread, userMsg, feedbackEl);
+}
+
+}
+
+// ─── FIND YOUR NEXT READ ──────────────────────────────────────────────────────
+
+const FNR_GENRES = [
+  { value: 'literary_fiction',   label: 'Literary, introspective fiction' },
+  { value: 'historical_fiction', label: 'Historical fiction' },
+  { value: 'scifi_fantasy',      label: 'Science fiction or fantasy' },
+  { value: 'mystery_thriller',   label: 'Mystery, crime, or thriller' },
+  { value: 'romance',            label: 'Romance or relationships' },
+  { value: 'memoir',             label: 'Memoir or biography' },
+  { value: 'history_politics',   label: 'History or politics' },
+  { value: 'psychology',         label: 'Psychology or self-development' },
+  { value: 'science_tech',       label: 'Science or technology' },
+  { value: 'philosophy',         label: 'Philosophy or big ideas' },
+  { value: 'something_else',     label: 'Something else →' },
+];
+
+const FNR_CONTEXTS = [
+  { value: 'listen_multitask', label: 'Something I can listen to while doing other things' },
+  { value: 'short_bursts',     label: 'Something for short bursts (commute, between tasks)' },
+  { value: 'night_read',       label: 'A night read I can sink into' },
+  { value: 'slump_buster',     label: 'Something to get me out of a reading slump' },
+  { value: 'break_pattern',    label: 'Something to break my usual pattern' },
+  { value: 'make_think',       label: 'Something that will really make me think' },
+  { value: 'something_else',   label: 'Something else →' },
+];
+
+let _fnrFormState  = null;  // saved when navigating to results; cleared on fresh open
+let _fnrResults    = [];    // current 5 results on screen
+let _fnrSearchTimer = null;
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+
+function openFindNextRead() {
+  _fnrFormState = null;
+  document.getElementById('wishlist-main').style.display = 'none';
+  document.getElementById('fnr-content').style.display   = 'block';
+  document.getElementById('fnr-form-section').style.display    = 'block';
+  document.getElementById('fnr-results-section').style.display = 'none';
+  document.getElementById('fnr-back-label').textContent = 'Wishlist';
+  _fnrRenderPills();
+}
+
+function fnrBack() {
+  const resultsVisible = document.getElementById('fnr-results-section').style.display !== 'none';
+  if (resultsVisible) {
+    // Results → Form (pre-filled)
+    document.getElementById('fnr-results-section').style.display = 'none';
+    document.getElementById('fnr-form-section').style.display    = 'block';
+    document.getElementById('fnr-back-label').textContent = 'Wishlist';
+    if (_fnrFormState) _fnrRestoreForm();
+  } else {
+    // Form → Wishlist
+    _fnrFormState = null;
+    document.getElementById('fnr-content').style.display   = 'none';
+    document.getElementById('wishlist-main').style.display = 'block';
+  }
+}
+
+// ── Pills ─────────────────────────────────────────────────────────────────────
+
+function _fnrRenderPills() {
+  _fnrRenderPillGroup('fnr-genre-pills',   FNR_GENRES,   3, 'fnr-custom-genre');
+  _fnrRenderPillGroup('fnr-context-pills', FNR_CONTEXTS, 2, 'fnr-custom-context');
+}
+
+function _fnrRenderPillGroup(containerId, items, max, customInputId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = items.map(item => `
+    <button type="button"
+      class="fnr-pill"
+      data-value="${item.value}"
+      onclick="fnrTogglePill(this, '${containerId}', ${max}, '${customInputId}')">
+      ${item.label}
+    </button>`).join('');
+}
+
+function fnrTogglePill(btn, containerId, max, customInputId) {
+  const isActive  = btn.classList.contains('active');
+  const container = document.getElementById(containerId);
+  const active    = container.querySelectorAll('.fnr-pill.active');
+  if (!isActive && active.length >= max) return; // cap reached
+  btn.classList.toggle('active');
+  // Show/hide "something else" free text
+  const customInput = document.getElementById(customInputId);
+  if (customInput) {
+    const hasSomethingElse = container.querySelector('.fnr-pill[data-value="something_else"]')?.classList.contains('active');
+    customInput.classList.toggle('hidden', !hasSomethingElse);
+  }
+}
+
+// ── Form save / restore ───────────────────────────────────────────────────────
+
+function _fnrSaveFormState() {
+  const genreContainer   = document.getElementById('fnr-genre-pills');
+  const contextContainer = document.getElementById('fnr-context-pills');
+  _fnrFormState = {
+    genres:        [...genreContainer.querySelectorAll('.fnr-pill.active')].map(b => b.dataset.value),
+    customGenre:   document.getElementById('fnr-custom-genre').value,
+    topic:         document.getElementById('fnr-topic').value,
+    bookSearch:    document.getElementById('fnr-book-search').value,
+    bookValue:     document.getElementById('fnr-book-value').value,
+    bookNotes:     document.getElementById('fnr-book-notes').value,
+    authorSearch:  document.getElementById('fnr-author-search').value,
+    authorValue:   document.getElementById('fnr-author-value').value,
+    authorNotes:   document.getElementById('fnr-author-notes').value,
+    contexts:      [...contextContainer.querySelectorAll('.fnr-pill.active')].map(b => b.dataset.value),
+    customContext: document.getElementById('fnr-custom-context').value,
+    avoid:         document.getElementById('fnr-avoid').value,
+  };
+}
+
+function _fnrRestoreForm() {
+  if (!_fnrFormState) return;
+  const s = _fnrFormState;
+  // Re-render pills then apply active states
+  _fnrRenderPills();
+  const genreContainer   = document.getElementById('fnr-genre-pills');
+  const contextContainer = document.getElementById('fnr-context-pills');
+  s.genres.forEach(v => {
+    const btn = genreContainer.querySelector(`.fnr-pill[data-value="${v}"]`);
+    if (btn) btn.classList.add('active');
+  });
+  s.contexts.forEach(v => {
+    const btn = contextContainer.querySelector(`.fnr-pill[data-value="${v}"]`);
+    if (btn) btn.classList.add('active');
+  });
+  const customGenreInput   = document.getElementById('fnr-custom-genre');
+  const customContextInput = document.getElementById('fnr-custom-context');
+  customGenreInput.value   = s.customGenre;
+  customContextInput.value = s.customContext;
+  if (s.genres.includes('something_else'))   customGenreInput.classList.remove('hidden');
+  if (s.contexts.includes('something_else')) customContextInput.classList.remove('hidden');
+  document.getElementById('fnr-topic').value        = s.topic;
+  document.getElementById('fnr-book-search').value  = s.bookSearch;
+  document.getElementById('fnr-book-value').value   = s.bookValue;
+  document.getElementById('fnr-book-notes').value   = s.bookNotes;
+  document.getElementById('fnr-author-search').value = s.authorSearch;
+  document.getElementById('fnr-author-value').value  = s.authorValue;
+  document.getElementById('fnr-author-notes').value  = s.authorNotes;
+  document.getElementById('fnr-avoid').value         = s.avoid;
+}
+
+// ── Autocomplete ──────────────────────────────────────────────────────────────
+
+function fnrDebouncedBookSearch() {
+  clearTimeout(_fnrSearchTimer);
+  const val = document.getElementById('fnr-book-search').value.trim();
+  document.getElementById('fnr-book-value').value = '';
+  if (val.length < 2) { document.getElementById('fnr-book-suggestions').classList.add('hidden'); return; }
+  _fnrSearchTimer = setTimeout(() => _fnrFetchBooks(val), 400);
+}
+
+function fnrDebouncedAuthorSearch() {
+  clearTimeout(_fnrSearchTimer);
+  const val = document.getElementById('fnr-author-search').value.trim();
+  document.getElementById('fnr-author-value').value = '';
+  if (val.length < 2) { document.getElementById('fnr-author-suggestions').classList.add('hidden'); return; }
+  _fnrSearchTimer = setTimeout(() => _fnrFetchAuthors(val), 400);
+}
+
+async function _fnrFetchBooks(query) {
+  const sugEl = document.getElementById('fnr-book-suggestions');
+  sugEl.classList.remove('hidden');
+  sugEl.innerHTML = '<p class="fnr-lookup-loading">Searching…</p>';
+  try {
+    const url  = `https://www.googleapis.com/books/v1/volumes?q=intitle:${encodeURIComponent(query)}&maxResults=5`;
+    const res  = await fetch(url);
+    const data = await res.json();
+    const items = (data.items || []).map(item => ({
+      title:  item.volumeInfo?.title || '',
+      author: (item.volumeInfo?.authors || []).join(', '),
+    })).filter(i => i.title);
+    if (!items.length) { sugEl.innerHTML = '<p class="fnr-lookup-loading">No results.</p>'; return; }
+    sugEl.innerHTML = items.map(i =>
+      `<div class="fnr-suggestion-item" onclick="fnrSelectBook('${i.title.replace(/'/g,"\\'")}','${i.author.replace(/'/g,"\\'")}')">
+        <span class="fnr-sug-title">${i.title}</span>
+        ${i.author ? `<span class="fnr-sug-author">${i.author}</span>` : ''}
+      </div>`).join('');
+  } catch { sugEl.innerHTML = '<p class="fnr-lookup-loading">Lookup failed.</p>'; }
+}
+
+async function _fnrFetchAuthors(query) {
+  const sugEl = document.getElementById('fnr-author-suggestions');
+  sugEl.classList.remove('hidden');
+  sugEl.innerHTML = '<p class="fnr-lookup-loading">Searching…</p>';
+  try {
+    const url  = `https://www.googleapis.com/books/v1/volumes?q=inauthor:${encodeURIComponent(query)}&maxResults=8`;
+    const res  = await fetch(url);
+    const data = await res.json();
+    const authors = [...new Set(
+      (data.items || [])
+        .flatMap(item => item.volumeInfo?.authors || [])
+        .filter(a => a.toLowerCase().includes(query.toLowerCase()))
+    )].slice(0, 5);
+    if (!authors.length) { sugEl.innerHTML = '<p class="fnr-lookup-loading">No results.</p>'; return; }
+    sugEl.innerHTML = authors.map(a =>
+      `<div class="fnr-suggestion-item" onclick="fnrSelectAuthor('${a.replace(/'/g,"\\'")}')">
+        <span class="fnr-sug-title">${a}</span>
+      </div>`).join('');
+  } catch { sugEl.innerHTML = '<p class="fnr-lookup-loading">Lookup failed.</p>'; }
+}
+
+function fnrSelectBook(title, author) {
+  document.getElementById('fnr-book-search').value = title + (author ? ` — ${author}` : '');
+  document.getElementById('fnr-book-value').value  = title;
+  document.getElementById('fnr-book-suggestions').classList.add('hidden');
+}
+
+function fnrSelectAuthor(name) {
+  document.getElementById('fnr-author-search').value = name;
+  document.getElementById('fnr-author-value').value  = name;
+  document.getElementById('fnr-author-suggestions').classList.add('hidden');
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#fnr-book-search') && !e.target.closest('#fnr-book-suggestions'))
+    document.getElementById('fnr-book-suggestions')?.classList.add('hidden');
+  if (!e.target.closest('#fnr-author-search') && !e.target.closest('#fnr-author-suggestions'))
+    document.getElementById('fnr-author-suggestions')?.classList.add('hidden');
+});
+
+// ── User context builder ──────────────────────────────────────────────────────
+
+function _fnrBuildUserContext() {
+  // Top 30 top-rated books
+  const topRated = books
+    .filter(b => b.rating === 'rentfree' || b.rating === 'wrecked')
+    .slice(0, 30);
+
+  // Highlight counts per book
+  const hlCounts = {};
+  highlights.forEach(h => { hlCounts[h.bookId] = (hlCounts[h.bookId] || 0) + 1; });
+
+  // Top 10 of those by highlight count — get whyItStayed
+  const topByHl = [...topRated]
+    .sort((a, b) => (hlCounts[b.id] || 0) - (hlCounts[a.id] || 0))
+    .slice(0, 10)
+    .map(b => b.id);
+
+  const topRatedBooks = topRated.map(b => {
+    const why = topByHl.includes(b.id)
+      ? highlights.filter(h => h.bookId === b.id && h.whyItStayed).slice(0, 3).map(h => h.whyItStayed)
+      : [];
+    return { title: b.title, author: b.author || '', category: b.category, aftertaste: b.aftertaste || '', why_it_stayed: why };
+  });
+
+  // Paused books as negative signal
+  const pausedBooks = books.filter(b => b.status === 'Paused')
+    .map(b => ({ title: b.title, category: b.category }));
+
+  // Medium preference
+  const medium = { kindle: 0, audiobook: 0, physical: 0 };
+  books.forEach(b => { if (b.medium && medium[b.medium] !== undefined) medium[b.medium]++; });
+
+  // Highlight density top 5 (any rating)
+  const densityTop5 = books
+    .map(b => ({ title: b.title, author: b.author || '', count: hlCounts[b.id] || 0 }))
+    .filter(b => b.count > 0)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
+  return { topRatedBooks, pausedBooks, medium, densityTop5 };
+}
+
+function _fnrSerializeContext(ctx) {
+  const lines = [];
+  if (ctx.topRatedBooks.length) {
+    lines.push('BOOKS THIS READER LOVED (rated "Rent-free in my head" or "Wrecked me"):');
+    ctx.topRatedBooks.forEach(b => {
+      let s = `- "${b.title}"${b.author ? ` by ${b.author}` : ''} (${b.category})`;
+      if (b.aftertaste) s += `\n  Aftertaste: "${b.aftertaste}"`;
+      if (b.why_it_stayed.length) s += `\n  What resonated: ${b.why_it_stayed.map(w => `"${w}"`).join('; ')}`;
+      lines.push(s);
+    });
+  }
+  if (ctx.pausedBooks.length) {
+    lines.push('\nBOOKS THEY ABANDONED (use as negative signal — avoid similar):');
+    ctx.pausedBooks.forEach(b => lines.push(`- "${b.title}" (${b.category})`));
+  }
+  if (ctx.densityTop5.length) {
+    lines.push('\nBOOKS THAT ENGAGED THEM MOST (by number of highlights saved):');
+    ctx.densityTop5.forEach(b => lines.push(`- "${b.title}"${b.author ? ` by ${b.author}` : ''} — ${b.count} highlights`));
+  }
+  const total = ctx.medium.kindle + ctx.medium.audiobook + ctx.medium.physical;
+  if (total > 0) {
+    lines.push('\nREADING FORMAT PREFERENCE:');
+    if (ctx.medium.audiobook) lines.push(`- Audiobooks: ${ctx.medium.audiobook}/${total}`);
+    if (ctx.medium.kindle)    lines.push(`- Kindle/digital: ${ctx.medium.kindle}/${total}`);
+    if (ctx.medium.physical)  lines.push(`- Physical: ${ctx.medium.physical}/${total}`);
+  }
+  return lines.join('\n');
+}
+
+// ── Submit ────────────────────────────────────────────────────────────────────
+
+async function submitFindNextRead() {
+  _fnrSaveFormState();
+  const s = _fnrFormState;
+
+  // Build user message
+  const genreLabels  = s.genres.filter(v => v !== 'something_else')
+    .map(v => FNR_GENRES.find(g => g.value === v)?.label).filter(Boolean);
+  const contextLabels = s.contexts.filter(v => v !== 'something_else')
+    .map(v => FNR_CONTEXTS.find(c => c.value === v)?.label).filter(Boolean);
+
+  const ctx     = _fnrBuildUserContext();
+  const profile = _fnrSerializeContext(ctx);
+
+  const userMsg = [
+    profile ? `USER READING PROFILE:\n${profile}` : '',
+    genreLabels.length  ? `GENRES: ${genreLabels.join(', ')}` : '',
+    s.customGenre       ? `CUSTOM GENRE: ${s.customGenre}` : '',
+    s.topic             ? `TOPIC / MOOD: ${s.topic}` : '',
+    s.bookValue         ? `REFERENCE BOOK: ${s.bookValue}` : '',
+    s.bookNotes         ? `WHAT STAYED WITH THEM ABOUT IT: ${s.bookNotes}` : '',
+    s.authorValue       ? `REFERENCE AUTHOR: ${s.authorValue}` : '',
+    s.authorNotes       ? `WHAT THEY LOVE ABOUT THAT AUTHOR: ${s.authorNotes}` : '',
+    contextLabels.length ? `READING CONTEXT: ${contextLabels.join(', ')}` : '',
+    s.customContext     ? `CUSTOM CONTEXT: ${s.customContext}` : '',
+    s.avoid             ? `AVOID: ${s.avoid}` : '',
+  ].filter(Boolean).join('\n\n');
+
+  // Show loading
+  document.getElementById('fnr-form-section').style.display    = 'none';
+  document.getElementById('fnr-results-section').style.display = 'block';
+  document.getElementById('fnr-back-label').textContent = 'Edit preferences';
+  document.getElementById('fnr-results-list').innerHTML = _fnrSkeletonHtml();
+  document.getElementById('fnr-form-error').classList.add('hidden');
+
+  const raw = await callAIWithFeedback(AI_PROMPTS.findNextRead, [], userMsg, null);
+  if (!raw) {
+    // Restore form with error
+    document.getElementById('fnr-results-section').style.display = 'none';
+    document.getElementById('fnr-form-section').style.display    = 'block';
+    document.getElementById('fnr-back-label').textContent = 'Wishlist';
+    const errEl = document.getElementById('fnr-form-error');
+    errEl.textContent = 'No API key set — go to Settings to add one, then try again.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  let results;
+  try {
+    const cleaned = raw.replace(/```json|```/g, '').trim();
+    results = JSON.parse(cleaned).recommendations;
+    if (!Array.isArray(results) || results.length === 0) throw new Error('Empty');
+  } catch {
+    document.getElementById('fnr-results-section').style.display = 'none';
+    document.getElementById('fnr-form-section').style.display    = 'block';
+    document.getElementById('fnr-back-label').textContent = 'Wishlist';
+    const errEl = document.getElementById('fnr-form-error');
+    errEl.textContent = 'Could not parse AI response. Please try again.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  _fnrResults = results;
+  _fnrRenderResults();
+}
+
+// ── Results rendering ─────────────────────────────────────────────────────────
+
+function _fnrSkeletonHtml() {
+  return Array.from({ length: 5 }).map(() => `
+    <div class="fnr-result-card fnr-skeleton">
+      <div class="fnr-skel-title"></div>
+      <div class="fnr-skel-line"></div>
+      <div class="fnr-skel-line fnr-skel-short"></div>
+    </div>`).join('');
+}
+
+function _fnrRenderResults() {
+  document.getElementById('fnr-results-list').innerHTML =
+    _fnrResults.map((r, i) => _fnrCardHtml(r, i)).join('');
+}
+
+function _fnrCardHtml(r, i) {
+  const gbUrl   = `https://books.google.com/books?q=${encodeURIComponent(r.title + ' ' + r.author)}`;
+  const feelTags = (r.reading_feel || []).map(t => `<span class="fnr-feel-tag">${t}</span>`).join('');
+  const effort   = r.effort_level || '';
+  const effortClass = effort === 'Easy' ? 'fnr-effort-easy' : effort === 'Dense' ? 'fnr-effort-dense' : 'fnr-effort-moderate';
+  return `
+    <div class="fnr-result-card" id="fnr-card-${i}">
+      <div class="fnr-card-top">
+        <div class="fnr-card-title-wrap">
+          <span class="fnr-card-title">${r.title}</span>
+          <span class="fnr-card-author">${r.author}</span>
+        </div>
+        <a href="${gbUrl}" target="_blank" rel="noopener noreferrer" class="fnr-gb-link" title="View on Google Books"><i class="ph-bold ph-arrow-square-out"></i></a>
+      </div>
+      <p class="fnr-card-desc">${r.description}</p>
+      <p class="fnr-card-why">${r.why_it_fits}</p>
+      <div class="fnr-card-meta">
+        <div class="fnr-feel-tags">${feelTags}</div>
+        ${effort ? `<span class="fnr-effort-badge ${effortClass}">${effort}</span>` : ''}
+      </div>
+      <div class="fnr-card-actions">
+        <button class="fnr-replace-btn" onclick="fnrReplaceResult(${i})" id="fnr-replace-${i}"><i class="ph-bold ph-arrows-clockwise"></i> Replace</button>
+        <button class="fnr-wishlist-btn" onclick="fnrAddToWishlist(${i})" id="fnr-wish-${i}"><i class="ph-bold ph-heart"></i> Add to Wishlist</button>
+      </div>
+    </div>`;
+}
+
+async function fnrReplaceResult(index) {
+  const replaceBtn = document.getElementById(`fnr-replace-${index}`);
+  replaceBtn.disabled = true;
+  replaceBtn.innerHTML = '<i class="ph-bold ph-arrows-clockwise fnr-spin"></i> Finding…';
+
+  const currentTitles = _fnrResults.map((r, i) => i !== index ? `"${r.title}" by ${r.author}` : null).filter(Boolean);
+  const s = _fnrFormState || {};
+
+  const genreLabels   = (s.genres || []).filter(v => v !== 'something_else')
+    .map(v => FNR_GENRES.find(g => g.value === v)?.label).filter(Boolean);
+  const contextLabels = (s.contexts || []).filter(v => v !== 'something_else')
+    .map(v => FNR_CONTEXTS.find(c => c.value === v)?.label).filter(Boolean);
+
+  const ctx     = _fnrBuildUserContext();
+  const profile = _fnrSerializeContext(ctx);
+
+  const userMsg = [
+    profile          ? `USER READING PROFILE:\n${profile}` : '',
+    genreLabels.length ? `GENRES: ${genreLabels.join(', ')}` : '',
+    s.customGenre    ? `CUSTOM GENRE: ${s.customGenre}` : '',
+    s.topic          ? `TOPIC / MOOD: ${s.topic}` : '',
+    s.bookValue      ? `REFERENCE BOOK: ${s.bookValue}` : '',
+    s.bookNotes      ? `WHAT STAYED WITH THEM ABOUT IT: ${s.bookNotes}` : '',
+    s.authorValue    ? `REFERENCE AUTHOR: ${s.authorValue}` : '',
+    s.authorNotes    ? `WHAT THEY LOVE ABOUT THAT AUTHOR: ${s.authorNotes}` : '',
+    contextLabels.length ? `READING CONTEXT: ${contextLabels.join(', ')}` : '',
+    s.customContext  ? `CUSTOM CONTEXT: ${s.customContext}` : '',
+    s.avoid          ? `AVOID: ${s.avoid}` : '',
+    `CURRENTLY SHOWING (do NOT repeat any of these):\n${currentTitles.join('\n')}`,
+    `Replace slot ${index + 1} with ONE different recommendation. Return a JSON object with a single "recommendation" key (not an array):
+{
+  "recommendation": {
+    "title": "...",
+    "author": "...",
+    "description": "...",
+    "why_it_fits": "...",
+    "reading_feel": [...],
+    "effort_level": "..."
+  }
+}`,
+  ].filter(Boolean).join('\n\n');
+
+  const raw = await callAIWithFeedback(AI_PROMPTS.findNextRead, [], userMsg, null);
+  if (!raw) {
+    replaceBtn.disabled = false;
+    replaceBtn.innerHTML = '<i class="ph-bold ph-arrows-clockwise"></i> Replace';
+    return;
+  }
+  try {
+    const cleaned = raw.replace(/```json|```/g, '').trim();
+    const parsed  = JSON.parse(cleaned);
+    const newRec  = parsed.recommendation || (parsed.recommendations && parsed.recommendations[0]);
+    if (!newRec) throw new Error();
+    _fnrResults[index] = newRec;
+    const card = document.getElementById(`fnr-card-${index}`);
+    if (card) card.outerHTML = _fnrCardHtml(newRec, index);
+  } catch {
+    replaceBtn.disabled = false;
+    replaceBtn.innerHTML = '<i class="ph-bold ph-arrows-clockwise"></i> Replace';
+  }
+}
+
+async function fnrAddToWishlist(index) {
+  const r    = _fnrResults[index];
+  const btn  = document.getElementById(`fnr-wish-${index}`);
+  if (!r || !btn || btn.disabled) return;
+  const item = {
+    id:       nextId(wishlist),
+    title:    r.title,
+    author:   r.author  || '',
+    category: '',
+    note:     '',
+  };
+  await dbPut('wishlist', item);
+  wishlist.push(item);
+  await saveAndSync();
+  btn.disabled   = true;
+  btn.innerHTML  = '<i class="ph-bold ph-check"></i> Added';
+  btn.classList.add('fnr-wish-added');
 }
 
 // ─── BUILD ESSAY FLOW ─────────────────────────────────────────────────────────

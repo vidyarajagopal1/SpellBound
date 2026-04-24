@@ -14,7 +14,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="styles.css?v=89">
+  <link rel="stylesheet" href="styles.css?v=90">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
@@ -165,10 +165,91 @@
 
     <!-- Wishlist View -->
     <div id="wishlist-view" class="view hidden">
-      <div class="books-toolbar">
-        <button class="fab-inline" onclick="showAddWishlistForm()">+ Add to Wishlist</button>
+      <div id="wishlist-main">
+        <div class="books-toolbar fnr-toolbar">
+          <button class="fab-inline" onclick="showAddWishlistForm()">+ Add to Wishlist</button>
+          <button class="fnr-entry-btn" onclick="openFindNextRead()"><i class="ph-bold ph-magic-wand"></i> Find Your Next Read</button>
+        </div>
+        <div id="wishlist-list"></div>
       </div>
-      <div id="wishlist-list"></div>
+
+      <div id="fnr-content" style="display:none">
+        <!-- Header -->
+        <div class="fnr-header" id="fnr-header">
+          <button class="fnr-back-btn" id="fnr-back-btn" onclick="fnrBack()"><i class="ph-bold ph-arrow-left"></i> <span id="fnr-back-label">Wishlist</span></button>
+        </div>
+
+        <!-- Form section -->
+        <div id="fnr-form-section">
+          <h2 class="fnr-title">Find Your Next Read</h2>
+          <p class="fnr-intro">Let's find what you're in the mood for.</p>
+
+          <!-- Prompt 1: Genre mood -->
+          <div class="fnr-prompt">
+            <p class="fnr-prompt-label">In the mood for a specific kind of read?</p>
+            <p class="fnr-support-text">Pick a few if you're torn. Too much self-awareness can be injurious to curiosity.</p>
+            <div class="fnr-pills" id="fnr-genre-pills"></div>
+            <input type="text" id="fnr-custom-genre" class="fnr-text-input hidden" placeholder="Describe the kind of read…">
+          </div>
+
+          <!-- Prompt 2: Topic -->
+          <div class="fnr-prompt">
+            <p class="fnr-prompt-label">What are you in the mood to spend time with?</p>
+            <p class="fnr-support-text">Don't hold back. Make this as vague or specific as you'd like.</p>
+            <textarea id="fnr-topic" class="fnr-textarea" rows="3" placeholder="Self exploration, relationships, World War 2, a courtroom case, something funny…"></textarea>
+          </div>
+
+          <!-- Prompt 3: Book -->
+          <div class="fnr-prompt">
+            <p class="fnr-prompt-label">Want to relive how a book left you feeling?</p>
+            <p class="fnr-prompt-sublabel">Book</p>
+            <div class="fnr-autocomplete-wrap">
+              <input type="text" id="fnr-book-search" class="fnr-text-input" placeholder="Start typing a title or author…" oninput="fnrDebouncedBookSearch()" autocomplete="off">
+              <div id="fnr-book-suggestions" class="fnr-suggestions hidden"></div>
+              <input type="hidden" id="fnr-book-value">
+            </div>
+            <p class="fnr-prompt-sublabel">What about it stayed with you?</p>
+            <textarea id="fnr-book-notes" class="fnr-textarea" rows="2" placeholder="the pacing, the writing, a character, the ending…"></textarea>
+          </div>
+
+          <!-- Prompt 4: Author -->
+          <div class="fnr-prompt">
+            <p class="fnr-prompt-label">Have an author that could lift your spirits?</p>
+            <p class="fnr-support-text">Don't worry, we'll find ones similar to them too.</p>
+            <p class="fnr-prompt-sublabel">Author</p>
+            <div class="fnr-autocomplete-wrap">
+              <input type="text" id="fnr-author-search" class="fnr-text-input" placeholder="Start typing a name…" oninput="fnrDebouncedAuthorSearch()" autocomplete="off">
+              <div id="fnr-author-suggestions" class="fnr-suggestions hidden"></div>
+              <input type="hidden" id="fnr-author-value">
+            </div>
+            <p class="fnr-prompt-sublabel">What about their writing keeps you going back?</p>
+            <textarea id="fnr-author-notes" class="fnr-textarea" rows="2" placeholder="their voice, the humour, the way they build characters…"></textarea>
+          </div>
+
+          <!-- Prompt 5: Reading context -->
+          <div class="fnr-prompt">
+            <p class="fnr-prompt-label">How are you planning to read this?</p>
+            <p class="fnr-support-text">Let us work around your reality, not against it.</p>
+            <div class="fnr-pills" id="fnr-context-pills"></div>
+            <input type="text" id="fnr-custom-context" class="fnr-text-input hidden" placeholder="Tell us more…">
+          </div>
+
+          <!-- Prompt 6: Avoid -->
+          <div class="fnr-prompt">
+            <p class="fnr-prompt-label">Anything you want to avoid?</p>
+            <p class="fnr-support-text">Steer us away from things that will kill your will to read.</p>
+            <textarea id="fnr-avoid" class="fnr-textarea" rows="2" placeholder="long books, sad stories, war, the self-help type, technical jargon"></textarea>
+          </div>
+
+          <div id="fnr-form-error" class="fnr-error hidden"></div>
+          <button class="fnr-submit-btn" onclick="submitFindNextRead()">Find Your Next Read</button>
+        </div>
+
+        <!-- Results section -->
+        <div id="fnr-results-section" style="display:none">
+          <div id="fnr-results-list"></div>
+        </div>
+      </div>
     </div>
 
     <!-- Essay Detail View -->
