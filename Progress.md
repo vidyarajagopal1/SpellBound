@@ -549,3 +549,50 @@ Replaced the 5 original categories with 5 intent-based categories:
 ### Service Worker Dev Fix
 - `server.js` updated: `sw.js` route added before `express.static`, returning `Cache-Control: no-store` header
 - Prevents the service worker from being cached by the browser during local development, so cache version bumps take effect without manual unregister
+
+---
+
+## Books Tab — Spine Pile View (v96–v98)
+
+Replaced the category-sub-grouped row list with a visual **pile of books** — each book rendered as a horizontal spine, stacked to look like books lying flat on a nightstand.
+
+### Pile Structure (v96)
+- `loadBooks()` replaced entirely — now renders **piles** instead of grouped rows
+- Pile groupings:
+  - One pile each for **Reading**, **Queued Up**, **Paused** (hidden if 0 books)
+  - **Completed** split into one pile per rating in order: Wrecked → Rent-free → Good while it lasted → Forgot; unrated Completed books get their own pile; any rating bucket with 0 books is hidden
+- Each pile has a `pile-label` heading (Playfair Display italic, muted); completed piles show the rating icon alongside the label name
+- `spineTransformOffset(id)` — deterministic tilt (±1.8°) and horizontal shift (±12px) derived from the book's `id`, so piles look stable across re-renders
+- `escapeHtml(str)` helper added for XSS-safe rendering of user-entered titles and authors
+
+### Spine Design (v96)
+- Each spine: 46px tall, `border-radius: 3px`, category colour background
+- Gold accents: `border-top: 2px solid rgba(212,175,55,0.55)` + `border-bottom: 1px solid rgba(212,175,55,0.28)` + two thin `::before`/`::after` vertical stripes flanking the text
+- Text: title (Inter 600, 0.88rem, truncate with ellipsis) + `·` separator + author (italic, 0.72rem, max 40% width, truncate) + medium icon pinned right
+- Overlap: `margin-bottom: -6px` creates a stacked look
+- Tap → opens book detail (same as before)
+
+### Realistic Book Lighting (v97)
+- Background switched to CSS custom property `--spine-bg` (set inline) so CSS can layer gradients on top
+- **Highlight ridge**: `linear-gradient(to bottom, rgba(255,255,255,0.18) 0%, 0% 32%)` — top 30% brightens to simulate a curved spine catching light
+- **Side lighting**: `linear-gradient(to right, rgba(255,255,255,0.09) 0%, rgba(0,0,0,0.13) 100%)` — subtle left-bright / right-dark directional light
+- **Cast shadow** deepened: `box-shadow: 0 8px 14px rgba(0,0,0,0.65)` — each spine visibly shadows the one below
+- **Pages edge**: `border-right: 4px solid #e8d9b8` — warm cream strip on the right simulating book thickness
+- Text shadows strengthened with a two-layer value (`blur + tight glow`) and author opacity raised from 60% → 75% to stay legible against the gradient
+
+### Category Key — Shelf Divider Tabs (v98)
+- A row of 5 **shelf-divider-style tabs** added to the books toolbar below the status pills
+- Each tab: category colour (darkened 35% for contrast) as background, slightly raised top corners (`border-radius: 4px 4px 2px 2px`), thicker bottom edge for physical depth
+- Active tab gets a gold border + glow (`rgba(212,175,55,0.85)`) matching the spine aesthetic; tap again to clear the filter
+- Category filter is **AND'd** with the active status pill — e.g. Completed + Escape shows only completed Escape books
+- **Toolbar made sticky**: `position: sticky; top: var(--header-h)` — search bar, status pills, and category key all stay visible while scrolling, with a subtle separator line below
+- `setCategoryFilter(value)` function added; `loadBooks()` updated to read `#books-category-filter` hidden input
+
+---
+
+| Version | Changes |
+|---|---|
+| v96 | Books tab: pile/spine stack view replaces row list; `spineTransformOffset()`, `escapeHtml()` helpers; gold accent borders |
+| v97 | Realistic book lighting: highlight ridge gradient, side lighting gradient, deepened cast shadow, cream pages edge |
+| v98 | Category key: sticky shelf-divider tabs; category filter AND'd with status pill; sticky toolbar |
+

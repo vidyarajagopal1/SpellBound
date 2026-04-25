@@ -14,7 +14,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="styles.css?v=95">
+  <link rel="stylesheet" href="styles.css?v=98">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
@@ -59,6 +59,14 @@
           <button class="status-pill" onclick="setStatusFilter('Paused')">Paused</button>
           <button class="status-pill" onclick="setStatusFilter('Completed')">Completed</button>
         </div>
+        <div class="cat-dividers" id="cat-dividers">
+          <button class="cat-divider" onclick="setCategoryFilter('Escape')"    data-cat="Escape"     style="--cat-color:#C47A90">Escape</button>
+          <button class="cat-divider" onclick="setCategoryFilter('Understand')" data-cat="Understand" style="--cat-color:#C4A96A">Understand</button>
+          <button class="cat-divider" onclick="setCategoryFilter('Reflect')"   data-cat="Reflect"    style="--cat-color:#9B8AB8">Reflect</button>
+          <button class="cat-divider" onclick="setCategoryFilter('Evolve')"    data-cat="Evolve"     style="--cat-color:#78A882">Evolve</button>
+          <button class="cat-divider" onclick="setCategoryFilter('Question')"  data-cat="Question"   style="--cat-color:#6B9CB8">Question</button>
+        </div>
+        <input type="hidden" id="books-category-filter" value="">
         <select id="books-status-filter" style="display:none">
           <option value="">All Statuses</option>
           <option value="Reading">Reading</option>
@@ -613,7 +621,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-  <script src="app.js?v=95"></script>
+  <script src="app.js?v=98"></script>
   <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
   <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
 

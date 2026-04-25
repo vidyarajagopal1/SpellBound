@@ -342,10 +342,16 @@ main { min-height: 100%; }
 
 /* ─── BOOKS TOOLBAR ─────────────────────────────────────────────────────────── */
 .books-toolbar {
+  position: sticky;
+  top: var(--header-h);
+  z-index: 50;
+  background: var(--bg);
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-bottom: 1.25rem;
+  padding: 10px 0 12px;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 .books-toolbar-top {
   display: flex;
@@ -385,6 +391,42 @@ main { min-height: 100%; }
   font-weight: 700;
 }
 .status-pill:not(.active):active { background: var(--surface2); }
+
+/* ─── CATEGORY DIVIDER TABS ─────────────────────────────────────────────────── */
+.cat-dividers {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 2px;
+}
+.cat-dividers::-webkit-scrollbar { display: none; }
+.cat-divider {
+  flex-shrink: 0;
+  /* darkened category colour for the resting face */
+  background: color-mix(in srgb, var(--cat-color) 65%, #000 35%);
+  color: rgba(255,255,255,0.82);
+  border: 1px solid rgba(255,255,255,0.12);
+  /* thicker bottom edge mimics physical divider tab depth */
+  border-bottom: 3px solid color-mix(in srgb, var(--cat-color) 40%, #000 60%);
+  border-radius: 4px 4px 2px 2px;
+  padding: 5px 13px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.45);
+  transition: border-color 0.15s, box-shadow 0.15s, color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.cat-divider.active {
+  color: #fff;
+  border-color: rgba(212,175,55,0.85);
+  border-bottom-color: rgba(212,175,55,0.85);
+  box-shadow: 0 2px 10px rgba(212,175,55,0.28);
+}
+.cat-divider:not(.active):active { filter: brightness(1.2); }
 .books-toolbar-row select {
   flex: 1;
   min-width: 0;
@@ -628,6 +670,129 @@ main { min-height: 100%; }
 }
 .book-subgroup-list.collapsed {
   display: none;
+}
+
+/* ─── BOOK PILE / SPINE STACK VIEW ─────────────────────────────────────────── */
+.book-pile-section {
+  margin-bottom: 3rem;
+}
+.pile-label {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 1.1rem;
+  font-weight: 400;
+  color: rgba(255,255,255,0.55);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.pile-rating-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+.pile-count {
+  background: rgba(255,255,255,0.1);
+  color: var(--text-muted);
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-size: 0.7rem;
+  font-family: 'Inter', sans-serif;
+  font-style: normal;
+  font-weight: 500;
+}
+.pile-stack {
+  /* extra horizontal padding so tilted spines don't clip */
+  padding: 4px 18px 20px;
+  position: relative;
+}
+.book-spine {
+  position: relative;
+  height: 46px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  cursor: pointer;
+  margin-bottom: -6px;   /* slight overlap to look stacked */
+  /* Layered background: highlight ridge (top 30%), side lighting, then category colour */
+  background:
+    linear-gradient(to bottom, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 32%),
+    linear-gradient(to right,  rgba(255,255,255,0.09) 0%, rgba(0,0,0,0.13) 100%),
+    var(--spine-bg, #7A8FA6);
+  /* Stronger downward cast shadow onto the spine below */
+  box-shadow: 0 8px 14px rgba(0,0,0,0.65);
+  border-top: 2px solid rgba(212,175,55,0.55);
+  border-bottom: 1px solid rgba(212,175,55,0.28);
+  /* Pages edge — cream strip on the right simulating book thickness */
+  border-right: 4px solid #e8d9b8;
+  transition: box-shadow 0.15s, filter 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
+}
+/* gold accent stripes flanking the text */
+.book-spine::before,
+.book-spine::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(212,175,55,0.35);
+}
+.book-spine::before { left: 12px; }
+.book-spine::after  { right: 12px; }
+.book-spine:active {
+  filter: brightness(1.15);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.65);
+  z-index: 100 !important;
+}
+.spine-body {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+  padding: 0 10px;   /* stay clear of gold stripes */
+  overflow: hidden;
+}
+.spine-title {
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.88rem;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  color: rgba(255,255,255,0.97);
+  /* stronger shadow to stay crisp against both lighter (left) and darker (right) areas */
+  text-shadow: 0 1px 4px rgba(0,0,0,0.7), 0 0 2px rgba(0,0,0,0.4);
+}
+.spine-sep {
+  flex-shrink: 0;
+  color: rgba(212,175,55,0.65);
+  font-size: 0.75rem;
+}
+.spine-author {
+  flex: 0 2 auto;
+  min-width: 0;
+  max-width: 40%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.72rem;
+  font-style: italic;
+  color: rgba(255,255,255,0.75);
+  text-shadow: 0 1px 3px rgba(0,0,0,0.65), 0 0 2px rgba(0,0,0,0.35);
+}
+.spine-medium {
+  margin-left: 8px;
+  flex-shrink: 0;
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.38);
+  display: flex;
+  align-items: center;
 }
 
 /* ─── BOOK DETAIL ───────────────────────────────────────────────────────────── */

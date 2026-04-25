@@ -1,9 +1,10 @@
-const CACHE_NAME = 'spellbound-v95';
+const CACHE_NAME = 'spellbound-v98';
 const ASSETS = [
   '/',
   '/index.html',
-  '/app.js?v=95',
-  '/styles.css?v=95',
+  '/app.js?v=98',
+  '/styles.css?v=98',
+  '/logo-header.png',
   '/manifest.json',
   'https://cdn.jsdelivr.net/npm/marked@9/marked.min.js'
 ];

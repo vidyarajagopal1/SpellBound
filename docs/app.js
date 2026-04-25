@@ -618,11 +618,21 @@ function setStatusFilter(value) {
   loadBooks();
 }
 
+function setCategoryFilter(value) {
+  const input   = document.getElementById('books-category-filter');
+  const current = input.value;
+  const next    = current === value ? '' : value;
+  input.value   = next;
+  document.querySelectorAll('.cat-divider').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.cat === next);
+  });
+  loadBooks();
+}
+
 function loadBooks() {
   const query          = (document.getElementById('books-search')?.value || '').trim().toLowerCase();
   const statusFilter   = document.getElementById('books-status-filter').value;
-  const STATUS_ORDER   = ['Reading', 'Completed', 'Paused', 'Queued Up'];
-  const CATEGORY_ORDER = ['Escape', 'Understand', 'Reflect', 'Evolve', 'Question'];
+  const categoryFilter = document.getElementById('books-category-filter')?.value || '';
 
   let filtered = books;
   if (query) {
@@ -631,55 +641,81 @@ function loadBooks() {
       (b.author || '').toLowerCase().includes(query)
     );
   }
+  if (categoryFilter) {
+    filtered = filtered.filter(b => b.category === categoryFilter);
+  }
 
-  let html = '';
-  STATUS_ORDER.forEach(status => {
-    if (statusFilter && status !== statusFilter) return;
-    let group = filtered.filter(b => b.status === status);
-    if (group.length === 0) return;
+  const RATING_ORDER = ['wrecked', 'rentfree', 'goodwhile', 'forgot'];
+  const piles = [];
 
-    const cats = [...new Set(group.map(b => b.category))].sort((a, b) => {
-      const ia = CATEGORY_ORDER.indexOf(a), ib = CATEGORY_ORDER.indexOf(b);
-      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
-    });
+  // One pile each for non-completed statuses
+  for (const status of ['Reading', 'Queued Up', 'Paused']) {
+    if (statusFilter && statusFilter !== status) continue;
+    const booksInPile = filtered.filter(b => b.status === status);
+    if (booksInPile.length === 0) continue;
+    piles.push({ label: status, books: booksInPile, ratingInfo: null });
+  }
 
-    const subgroupsHtml = cats.map(cat => {
-      const catBooks  = group.filter(b => b.category === cat).sort((a, b) => (a.title || '').localeCompare(b.title || ''));
-      const color     = getCoverColor(cat);
-      const sgId      = `sg-${status}-${cat}`.replace(/[\s\/]+/g, '-').toLowerCase();
-      const rowsHtml  = catBooks.map(b => {
-        const rating = b.rating && RATING_LABELS[b.rating] ? RATING_LABELS[b.rating] : null;
-        const medium = getMediumIcon(b.medium);
-        return `
-        <div class="book-row" onclick="openBook(${b.id})" style="border-left:6px solid ${color};background:${hexToRgba(color, 0.07)}">
-          <div class="book-row-main">
-            <span class="book-row-title">${b.title}</span>
-            <div class="book-row-meta">
-              ${b.author ? `<span class="book-row-author">${b.author}</span>` : ''}
-              ${medium ? `<span class="book-row-medium-icon">${medium}</span>` : ''}
-            </div>
-          </div>
-          ${rating ? `<div class="book-row-right" style="color:${rating.color}">${rating.icon} <span class="book-row-rating-text">${rating.short}</span></div>` : ''}
-        </div>`;
-      }).join('');
+  // Completed: one pile per rating (hidden if 0 books), plus unrated pile
+  if (!statusFilter || statusFilter === 'Completed') {
+    const completedBooks = filtered.filter(b => b.status === 'Completed');
+    for (const rKey of RATING_ORDER) {
+      const rBooks = completedBooks.filter(b => b.rating === rKey);
+      if (rBooks.length === 0) continue;
+      piles.push({ label: RATING_LABELS[rKey].label, books: rBooks, ratingInfo: RATING_LABELS[rKey] });
+    }
+    const unrated = completedBooks.filter(b => !b.rating || !RATING_LABELS[b.rating]);
+    if (unrated.length > 0) {
+      piles.push({ label: 'Completed', books: unrated, ratingInfo: null });
+    }
+  }
+
+  if (piles.length === 0) {
+    document.getElementById('books-list').innerHTML = '<p class="home-empty">No books match the selected filters.</p>';
+    return;
+  }
+
+  const html = piles.map(pile => {
+    const spinesHtml = pile.books.map((b, i) => {
+      const color  = getCoverColor(b.category);
+      const medium = getMediumIcon(b.medium);
+      const zIdx   = pile.books.length - i;
+      const { angle, shift } = spineTransformOffset(b.id);
+      const authorHtml = b.author
+        ? `<span class="spine-sep">·</span><span class="spine-author">${escapeHtml(b.author)}</span>`
+        : '';
+      const mediumHtml = medium ? `<span class="spine-medium">${medium}</span>` : '';
       return `
-        <div class="book-subgroup">
-          <div class="book-subgroup-heading" onclick="toggleBookSubgroup('${sgId}')">
-            <span>${cat}</span>
-            <span class="books-group-count">${catBooks.length}</span>
-            <i class="ph-bold ph-caret-down book-subgroup-toggle" id="toggle-${sgId}"></i>
+        <div class="book-spine" onclick="openBook(${b.id})"
+             style="--spine-bg:${color};transform:rotate(${angle}deg) translateX(${shift}px);z-index:${zIdx}">
+          <div class="spine-body">
+            <span class="spine-title">${escapeHtml(b.title)}</span>
+            ${authorHtml}
           </div>
-          <div class="book-subgroup-list" id="${sgId}">${rowsHtml}</div>
+          ${mediumHtml}
         </div>`;
     }).join('');
 
-    html += `
-      <div class="books-group">
-        <h2 class="books-group-heading accent-${status.toLowerCase().replace(' ','-')}">${status}</h2>
-        ${subgroupsHtml}
+    const rIcon = pile.ratingInfo ? `<span class="pile-rating-icon">${pile.ratingInfo.icon}</span> ` : '';
+    return `
+      <div class="book-pile-section">
+        <h2 class="pile-label">${rIcon}${escapeHtml(pile.label)} <span class="pile-count">${pile.books.length}</span></h2>
+        <div class="pile-stack">${spinesHtml}</div>
       </div>`;
-  });
-  document.getElementById('books-list').innerHTML = html || '<p class="home-empty">No books match the selected filters.</p>';
+  }).join('');
+
+  document.getElementById('books-list').innerHTML = html;
+}
+
+function spineTransformOffset(id) {
+  const s     = Math.abs((id * 13 + 7) % 11);
+  const angle = (s % 5 - 2) * 0.9;   // –1.8° to +1.8°
+  const shift = (s % 7 - 3) * 4;     // –12px to +12px
+  return { angle, shift };
+}
+
+function escapeHtml(str) {
+  return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function toggleBookSubgroup(id) {
