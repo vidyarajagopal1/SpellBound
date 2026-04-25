@@ -3,7 +3,6 @@
 const GOOGLE_CLIENT_ID = '1039983743372-jd8ucsoagkevsras0s9c2g3mqvk7jq6g.apps.googleusercontent.com';
 const DRIVE_FILE_NAME  = 'spellbound-data.json';
 const DRIVE_SCOPE      = 'https://www.googleapis.com/auth/drive.appdata';
-const GMAIL_SCOPE      = 'https://www.googleapis.com/auth/gmail.compose';
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let currentBookId      = null;
@@ -190,7 +189,7 @@ function gapiLoaded() {
 function gisLoaded() {
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: GOOGLE_CLIENT_ID,
-    scope:     `${DRIVE_SCOPE} ${GMAIL_SCOPE}`,
+    scope:     DRIVE_SCOPE,
     callback:  '',
   });
   gisReady = true;
@@ -1433,34 +1432,7 @@ async function deleteEssayConfirmed(id) {
 
 function printEssay() { window.print(); }
 
-async function shareEssay() {
-  const essay = essays.find(e => e.id === currentEssayId);
-  if (!essay) return;
-  const subject = essay.title;
-  const bodyText = `${essay.title}\n\n${essay.content}`;
-  // Build RFC 2822 MIME message and base64url-encode it
-  const mime = [
-    `Subject: ${subject}`,
-    'Content-Type: text/plain; charset=utf-8',
-    '',
-    bodyText
-  ].join('\r\n');
-  const encoded = btoa(unescape(encodeURIComponent(mime)))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  try {
-    await gapi.client.request({
-      path:   'https://gmail.googleapis.com/gmail/v1/users/me/drafts',
-      method: 'POST',
-      body:   JSON.stringify({ message: { raw: encoded } })
-    });
-    window.open('https://mail.google.com/mail/#drafts', '_blank');
-  } catch (err) {
-    // Fallback: copy to clipboard and open blank compose
-    navigator.clipboard.writeText(bodyText).catch(() => {});
-    window.open(`https://mail.google.com/mail/?view=cm&su=${encodeURIComponent(subject)}`, '_blank');
-    alert('Could not create draft automatically. Essay copied to clipboard — paste into Gmail.');
-  }
-}
+function shareEssay() { window.print(); }
 
 // ─── FORMS ────────────────────────────────────────────────────────────────────
 function setMediumBtn(groupSelector, value) {
